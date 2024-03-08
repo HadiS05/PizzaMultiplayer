@@ -1,0 +1,1429 @@
+-- Your shapes go here
+import Graphics exposing (..)
+import GraphicSVG.EllieApp exposing(..)
+import Dict exposing (Dict)
+import Random
+myShapes localModel globalModel =
+  [
+    
+  ]
+
+sub (x,y) (u,v) = (x-(1.5*u),y-(1.5*v))
+add (x,y) (u,v) = (x+(1.5*u),y+(1.5*v))
+
+orderPizza : Pizza
+orderPizza = {toppings = Dict.fromList [(1,spinachTopping)
+                         ,(2,mushroomTopping)
+                         ,(3,olivesTopping)
+                         ,(4,pepperoniTopping)
+                         ,(5,pineappleTopping)
+                         ]
+             ,cheese = True}
+             
+startPizza = {toppings = Dict.fromList [(1,spinachTopping)
+                         ,(2,mushroomTopping)
+                         ,(3,olivesTopping)
+                         ,(4,pepperoniTopping)
+                         ,(5,pineappleTopping)
+                         ]
+             ,cheese = False}
+
+toppings = Dict.fromList [(1,spinachTopping)
+                         ,(2,mushroomTopping)
+                         ,(3,olivesTopping)
+                         ,(4,pepperoniTopping)
+                         ,(5,pineappleTopping)
+                         ]
+
+-- ALL OF THE MISC. GRAPHICS:
+skeletonEnv model = group [hintButton |> move(80,-50)
+                    ,menuIcon |> move(-80,50)
+                    ,settingsButton |> scale 0.8 |> move(120,18)
+                    ,timerIcon |> move(0,50)
+                    ,let
+                        timer = 125 - model.time
+                        timerString = String.fromInt (floor timer) ++ " sec."
+                     in
+                       [if (model.time) <= 125 && (model.time) >= 5 then (text <| ((String.fromInt <| truncate (125-model.time)) ++ " sec.")) |> bold |> filled model.buttonColour
+                       else if model.time < 5 then text "120 sec." |> bold |> filled model.buttonColour
+                       else losingScreen |> scale 1.2 |> move(15,-35)
+                       ] |> group |> scale 0.8 |> move(-15,35)]
+                       
+bell = group [curve (-39.62,38.013) [Pull (-40.37,37.691) (-41.12,37.369),Pull (-41.34,37.154) (-41.55,36.939),Pull (-41.77,36.510) (-41.98,36.080),Pull (-41.98,35.543) (-41.98,35.006),Pull (-41.87,34.147) (-41.77,33.288),Pull (-41.66,33.181) (-41.55,33.073),Pull (-43.81,32.859) (-46.06,32.644),Pull (-46.71,32.536) (-47.35,32.429),Pull (-48.10,32.214) (-48.85,32),Pull (-50.79,31.248) (-52.72,30.496),Pull (-54.22,29.530) (-55.73,28.563),Pull (-56.59,27.704) (-57.44,26.845),Pull (-58.20,25.986) (-58.95,25.127),Pull (-59.81,23.731) (-60.67,22.335),Pull (-61.20,21.154) (-61.74,19.973),Pull (-62.06,18.791) (-62.38,17.610),Pull (-62.60,16.214) (-62.81,14.818),Pull (-62.81,14.389) (-62.81,13.959),Pull (-62.92,13.637) (-63.03,13.315),Pull (-63.24,12.563) (-63.46,11.812),Pull (-63.57,10.738) (-63.67,9.6644),Pull (-38.65,9.6644) (-13.63,9.6644),Pull (-13.74,10.416) (-13.85,11.167),Pull (-14.06,11.704) (-14.28,12.241),Pull (-14.38,12.885) (-14.49,13.530),Pull (-14.71,13.852) (-14.92,14.174),Pull (-15.03,15.570) (-15.14,16.966),Pull (-15.24,17.288) (-15.35,17.610),Pull (-15.46,18.040) (-15.57,18.469),Pull (-16.10,20.187) (-16.64,21.906),Pull (-17.18,22.765) (-17.71,23.624),Pull (-18.89,25.234) (-20.08,26.845),Pull (-20.40,27.275) (-20.72,27.704),Pull (-21.26,28.134) (-21.79,28.563),Pull (-22.33,29.100) (-22.87,29.637),Pull (-23.73,30.067) (-24.59,30.496),Pull (-25.55,31.033) (-26.52,31.570),Pull (-27.59,31.892) (-28.67,32.214),Pull (-29.74,32.429) (-30.81,32.644),Pull (-32.53,32.751) (-34.25,32.859),Pull (-35.00,32.859) (-35.75,32.859),Pull (-35.65,33.395) (-35.54,33.932),Pull (-35.43,34.577) (-35.32,35.221),Pull (-35.54,35.973) (-35.75,36.724),Pull (-36.08,37.154) (-36.40,37.583),Pull (-37.26,37.906) (-38.12,38.228),Pull (-38.76,38.228) (-39.40,38.228),Pull (-39.51,38.228) (-39.62,38.228)] |> filled (rgb 186 189 194) |> addOutline (solid 2) black
+             ,curve (-40.91,8.5906) [Pull (-51.43,8.5906) (-61.95,8.5906),Pull (-62.17,8.4832) (-62.38,8.3758),Pull (-62.71,8.2684) (-63.03,8.1610),Pull (-63.35,7.7315) (-63.67,7.3020),Pull (-64.42,6.5503) (-65.18,5.7986),Pull (-65.61,5.0469) (-66.04,4.2953),Pull (-66.25,3.7583) (-66.46,3.2214),Pull (-66.57,2.7919) (-66.68,2.3624),Pull (-66.68,0.7516) (-66.68,-0.859),Pull (-66.57,-0.966) (-66.46,-1.073),Pull (-66.25,-1.181) (-66.04,-1.288),Pull (-38.76,-1.288) (-11.48,-1.288),Pull (-11.16,-1.181) (-10.84,-1.073),Pull (-10.84,-0.644) (-10.84,-0.214),Pull (-10.95,1.2885) (-11.06,2.7919),Pull (-11.06,3.3288) (-11.06,3.8657),Pull (-11.38,4.4026) (-11.70,4.9395),Pull (-12.02,5.5838) (-12.34,6.2281),Pull (-12.88,6.8724) (-13.42,7.5167),Pull (-14.06,7.9463) (-14.71,8.3758),Pull (-15.14,8.4832) (-15.57,8.5906),Pull (-15.78,8.5906) (-16,8.5906),Pull (-26.30,8.5906) (-36.61,8.5906),Pull (-38.76,8.5906) (-40.91,8.5906)] |> filled (rgb 116 116 116) |> addOutline (solid 2) black
+             ] |> scale 0.3 |> move(12,-60) |> notifyTap Done
+background = rect 1000 1000 |> filled init.bgColour |> move (0,0)
+settingsButton = group[curve (-62.60,49.825) [Pull (-62.92,48.214) (-63.24,46.604),Pull (-63.35,46.496) (-63.46,46.389),Pull (-63.67,46.174) (-63.89,45.959),Pull (-64.21,45.852) (-64.53,45.744),Pull (-65.93,46.281) (-67.32,46.818),Pull (-67.65,46.711) (-67.97,46.604),Pull (-68.29,46.174) (-68.61,45.744),Pull (-69.26,44.456) (-69.90,43.167),Pull (-69.90,42.953) (-69.90,42.738),Pull (-69.79,42.523) (-69.69,42.308),Pull (-69.26,41.986) (-68.83,41.664),Pull (-68.18,41.127) (-67.54,40.590),Pull (-67.54,40.375) (-67.54,40.161),Pull (-67.54,39.946) (-67.54,39.731),Pull (-67.54,39.624) (-67.54,39.516),Pull (-67.54,39.409) (-67.54,39.302),Pull (-67.54,39.194) (-67.54,39.087),Pull (-68.72,38.013) (-69.90,36.939),Pull (-69.90,36.724) (-69.90,36.510),Pull (-69.90,36.402) (-69.90,36.295),Pull (-69.79,36.080) (-69.69,35.865),Pull (-69.58,35.651) (-69.47,35.436),Pull (-68.61,34.147) (-67.75,32.859),Pull (-67.65,32.859) (-67.54,32.859),Pull (-67.43,32.859) (-67.32,32.859),Pull (-65.93,33.288) (-64.53,33.718),Pull (-64.42,33.718) (-64.32,33.718),Pull (-64,33.610) (-63.67,33.503),Pull (-63.57,33.395) (-63.46,33.288),Pull (-63.35,33.073) (-63.24,32.859),Pull (-63.14,32.536) (-63.03,32.214),Pull (-62.81,31.248) (-62.60,30.281),Pull (-62.60,30.067) (-62.60,29.852),Pull (-62.49,29.852) (-62.38,29.852),Pull (-62.28,29.744) (-62.17,29.637),Pull (-61.85,29.637) (-61.53,29.637),Pull (-59.59,29.744) (-57.66,29.852),Pull (-57.23,31.570) (-56.80,33.288),Pull (-56.48,33.503) (-56.16,33.718),Pull (-55.94,33.825) (-55.73,33.932),Pull (-54.33,33.395) (-52.93,32.859),Pull (-51.65,34.899) (-50.36,36.939),Pull (-50.57,37.369) (-50.79,37.798),Pull (-51.75,38.657) (-52.72,39.516),Pull (-52.72,39.946) (-52.72,40.375),Pull (-52.40,40.697) (-52.08,41.020),Pull (-51.22,41.879) (-50.36,42.738),Pull (-51.54,44.885) (-52.72,47.033),Pull (-54.33,46.496) (-55.94,45.959),Pull (-56.16,45.959) (-56.37,45.959),Pull (-56.69,46.174) (-57.02,46.389),Pull (-57.34,48) (-57.66,49.610),Pull (-57.66,49.718) (-57.66,49.825),Pull (-60.02,49.825) (-62.38,49.825)] |> filled init.buttonColour
+                      ,circle 2 |> filled init.bgColour |> scale 1.7 |> move(-60,40)
+                      ]
+menuIcon = group[
+             roundedRect 20 8 3 |> filled init.buttonColour |> move(0,10)
+            ,roundedRect 20 8 3 |> filled init.buttonColour |> move(0,0)
+            ,roundedRect 20 8 3 |> filled init.buttonColour |> move(0,-10)
+           ] |> scale 0.5
+timerIcon = group [circle 10 |> outlined (solid 2) init.buttonColour
+                  ,rect 2 4 |> filled init.buttonColour|> move(0,11)
+                  ,rect 4 2 |> filled init.buttonColour |> move(0,13)
+                  ,group[rect 2 4 |> filled init.buttonColour |> move(0,11)
+                        ,rect 4 2 |> filled init.buttonColour |> move(0,13)] |> rotate (degrees -30)
+                  ,wedge 8 0.05 |> filled init.buttonColour |> scaleY 0.25 |> rotate (degrees -90) |> move (0,7)
+                  ,wedge 8 0.05 |> filled init.buttonColour |> scaleY 0.25 |> rotate (degrees 180) |> move (7.6,-0.5)
+                  ] |> scale 0.7
+pizza1Shape = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,-10)
+                ,circle 7 |>filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,-10)
+                ,circle 26 |> outlined (solid 1) init.toppingColour |> move(0,0)]
+              
+pizza2Shape = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,-10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,-10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,0)
+                ,circle 26 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)]
+                
+pizza3Shape = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,15)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,0)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,-15)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-15,0)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(15,0)
+              ,circle 26 |> outlined (solid 1) init.toppingColour |> move(0,0)]
+
+toppingTable localModel = group[
+               roundedRect 10 21 3 |> filled localModel.tableColour |> move(0,-1.5) |> scale 5
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,30)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,15)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,0)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-15)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,-30)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-45)
+               ,cheeseTopping |> move(-11,32)
+               ,spinachTopping |> scale 0.8 |> move (9,15) |> move ( case localModel.mouseState of 
+                                                                        Waiting -> localModel.pos
+                                                                        Dragging delta -> add delta localModel.pos
+                                                                    ) |> ( case localModel.mouseState of 
+                                                                             Waiting ->
+                                                                                notifyMouseDownAt NewPos
+                                                                             Dragging _ ->
+                                                                                identity
+                                                                          )
+               ,mushroomTopping |> scale 0.8 |> move(-9,0) 
+               ,pineappleTopping |> scale 0.7 |> move(9,-15)
+               ,olivesTopping |> scale 0.8 |> move (-9,-30)
+               ,pepperoniTopping |> scale 0.8 |> move(9,-45)
+               ] |> scale 0.7
+startingPage =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    [roundedRect 70 17 4
+      |> filled buttonGreen
+      |> move (-40,-20)
+    ,text "Multiplayer"
+      |> filled textColourBeige
+      |> move (-68,-23)] |> group |> notifyTap Go2Multiplayer
+    ,
+    [roundedRect 80 17 4
+      |> filled buttonGreen
+      |> move (40,-20)
+    ,text "Single Player"
+      |> filled textColourBeige
+      |> move (7,-23)] |> group |> notifyTap Go2Singleplayer
+    ,
+    text "Pizza"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,40)
+    ,
+    text "Multiplayer"
+      |> filled textColourBeige
+      |> scale 1.7
+      |> move (-50,10)
+  ]
+
+menuPage =
+  group
+  [
+    roundedRect 110 120 4
+      |> filled black
+      |> move(2,0)
+    ,
+    roundedRect 110 120 4
+      |> filled textColourBeige
+    ,
+    text "Menu"
+      |> filled black
+      |> scale 1.5
+      |> move (-20,40)
+    ,
+    line (-40,35) (40,35)
+      |> outlined (solid 1) black
+    ,
+    text "Best Time: 0 seconds"
+      |> filled black
+      |> scale 0.7
+      |> move (-35,20)
+    ,
+    text "Displayed Name:"
+      |> filled black
+      |> scale 0.7
+      |> move (-35,10)
+    ,
+    roundedRect 70 10 2
+      |> filled white
+    ,
+    roundedRect 60 12 6
+      |> filled bgRed
+      |> move (0, -20)
+    ,
+    roundedRect 22 13 6
+      |> filled bgRed
+      |> move (-30,-35)
+    ,
+    [roundedRect 22 13 6
+      |> filled bgRed
+      |> move (30,-35)
+    ,text "Reset"
+      |> filled textColourBeige
+      |> scale 0.6
+      |> move (22,-37)] |> group |> notifyTap Restart
+    ,
+    text "Have Feedback? Let us know"
+      |> underline
+      |> filled blue
+      |> scale 0.4
+      |> move (-30,-55)
+    ,
+    text "Leaderboard"
+      |> filled textColourBeige
+      |> scale 0.7
+      |> move (-22,-23)
+    ,
+    text "Exit"
+      |> filled textColourBeige
+      |> scale 0.7
+      |> move (-37,-38)
+      |> notifyTap Exit
+  ]
+  
+  
+leaderboardPage =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed  
+    ,
+    text "Leaderboard"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-40,45)
+    ,
+    text "X"
+      |> filled white
+      |> scale 1
+      |> move (85,54)
+    ,
+    text "Name 1"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,25)
+    ,
+    text "Name 2"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,10)
+    ,
+    text "Name 3"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,-5)
+    ,
+    text "Score"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (30,25)
+  ]
+
+losingScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (0,-25)  
+    ,
+    text "Time"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,20)
+    ,
+    text "Over!"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,5)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-34,-28)  
+  ]
+  
+finalScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (0,-25)  
+    ,
+    text "Final"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,20)
+    ,
+    text "Round"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-26,5)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-34,-29)  
+  ]
+  
+winnerScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (-3,-25)  
+    ,
+    text "Completed"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-42,40)
+    ,
+    text "In"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-15,20)
+    ,
+    text "0 Seconds"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-43,0)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-37,-28)
+  ]
+
+-- MODIFYING PIZZA ORDER:
+addCheese : Pizza -> LocalModel -> GlobalModel -> Shape GlobalMsg
+addCheese pizza localModel globalModel =
+      let 
+          freshPizza1 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                         ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza1Shape
+          cheesePizza1 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza1Shape
+
+          freshPizza2 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                         ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza2Shape
+          cheesePizza2 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza2Shape
+
+          freshPizza3 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza3Shape
+          cheesePizza3 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza3Shape
+      in
+        case globalModel.level of
+            1 -> if pizza.cheese then cheesePizza1 |> group else freshPizza1 |> group
+            2 -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+            3 -> if pizza.cheese then cheesePizza3 |> group else freshPizza3 |> group
+            _ -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+
+oneToFive : Random.Generator Int
+oneToFive = Random.int 1 5
+
+getNewTopping : Cmd GlobalMsg
+getNewTopping =
+  Random.generate NewTopping oneToFive
+  
+generateToppings : Pizza -> GlobalModel -> Pizza
+generateToppings pizza globalModel = 
+    let
+      topping1 = case globalModel.rando of 
+                    x :: _ -> x
+                    [] -> 1
+      topping2 = case globalModel.rando of 
+                    x :: y :: _ -> y
+                    [] -> 1
+                    _ -> 1
+      topping3 = case globalModel.rando of 
+                    x :: y :: z :: _ -> z
+                    [] -> 1
+                    _ -> 1
+      topping4 = case globalModel.rando of 
+                    x :: y :: z :: a :: _ -> a
+                    [] -> 1
+                    _ -> 1
+      topping5 = case globalModel.rando of 
+                    _ :: x :: [] -> x
+                    [] -> 1
+                    _ -> 1
+      
+      shapeTopping1 = case (Dict.get topping1 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping2 = case (Dict.get topping2 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping3 = case (Dict.get topping3 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping4 = case (Dict.get topping4 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping5 = case (Dict.get topping5 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+      topping = case globalModel.level of 
+                   1 -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ]}
+                               
+                   2 -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ,(shapeTopping5,(0,0))
+                                            ]}
+                   3 -> {pizza | topping = [(shapeTopping1,(0,15))
+                                            ,(shapeTopping2,(0,-15))
+                                            ,(shapeTopping3,(-15,0))
+                                            ,(shapeTopping4,(15,0))
+                                            ,(shapeTopping5,(0,0))
+                                            ]}
+                   _ -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ]}
+    in
+      topping
+
+getToppingShapes : List (Shape GlobalMsg, (Float,Float)) -> List (Shape GlobalMsg)
+getToppingShapes ls =
+          case ls of
+            (a,xy) :: xs -> [a |> scale 0.5 |> move xy] ++ (getToppingShapes xs)
+            [] -> []
+            
+generatePizzaOrder : Pizza -> GlobalModel -> Shape GlobalMsg
+generatePizzaOrder pizza globalModel =
+        let 
+          {topping, cheese} = pizza
+        in 
+          [addCheese pizza globalModel
+          ,(getToppingShapes topping) |> group
+          ] |> group
+          
+order globalModel = [receipt |> move(-10,0)
+        ,text "ORDER" |> size 18 |> filled black |> move(-30,40)
+        , generatePizzaOrder (generateToppings orderPizza globalModel) globalModel |> move(0,5)
+        , textWrap (textOrder globalModel.rando globalModel) |> move(0,-33)
+        ] |> group |> move(0,0)
+        
+textOrder: List Int -> GlobalModel -> String
+textOrder ls globalModel =
+      let 
+        list = case globalModel.level of
+                  1 -> List.take 4 ls
+                  2 -> ls
+                  3 -> ls
+                  _ -> List.take 4 ls
+      in
+        case list of
+          [] -> ""
+          x :: [] -> case x of
+                       1 -> "and spinach."
+                       2 -> "and mushroom."
+                       3 -> "and olives."
+                       4 -> "and pepperoni."
+                       5 -> "and pineapple."
+                       _ -> ""      
+          x :: y :: [] -> case x of
+                       1 -> "\nspinach " ++ (textOrder [y] globalModel)
+                       2 -> "\nmushroom " ++ (textOrder [y] globalModel)
+                       3 -> "\nolives " ++ (textOrder [y] globalModel)
+                       4 -> "\npepperoni " ++ (textOrder [y] globalModel)
+                       5 -> "\npineapple " ++ (textOrder [y] globalModel)
+                       _ -> "\n " ++ (textOrder [y] globalModel)
+          x :: xs -> case x of 
+                      1 -> "spinach, " ++ (textOrder xs globalModel)
+                      2 -> "mushroom, " ++ (textOrder xs globalModel)
+                      3 -> "olives, " ++ (textOrder xs globalModel)
+                      4 -> "pepperoni, " ++ (textOrder xs globalModel)
+                      5 -> "pineapple, " ++ (textOrder xs globalModel)
+                      _ -> " "
+                    
+textWrap : String -> Shape GlobalMsg
+textWrap str = 
+    let 
+      lines =  String.lines str
+      line1 = case (List.head lines) of 
+                Just a -> a
+                Nothing -> " "
+      line2 = case (List.head (List.reverse lines)) of 
+                Just a -> a
+                Nothing -> " "
+                
+    in
+       if String.contains "\n" str then
+         [text "Order of cheese pizza with " |> centered |> size 4.5 |> bold |> filled black |> move(0,0)
+         ,text (line1) |> centered |> size 4.5 |> bold |> filled black |> move(0,-5)
+         ,text line2 |> centered |> size 4.5 |> bold |> filled black |> move(0,-10)
+         ] |> group
+       else
+         text ("Order of " ++ (line1)) |> centered |> size 4.5 |> bold |> filled black |> move(0,0)
+         
+
+        
+
+
+
+
+localUpdate : LocalMsg -> LocalModel -> GlobalModel -> LocalModel
+localUpdate msg localModel globalModel = 
+  case msg of
+    Types.Tick t _ -> { localModel | time = t }
+    Go2Multiplayer  -> localModel
+    Go2Singleplayer -> localModel
+    LetGo -> localModel
+
+type alias Pizza = {toppings : Dict Int (Shape LocalMsg), cheese : Bool}
+
+globalUpdate : GlobalMsg -> GlobalModel -> GlobalModel
+globalUpdate msg globalModel =
+    case msg of
+        TimeUp -> globalModel
+        Done -> globalModel
+        NewPos _ -> globalModel
+        MovePos _ -> globalModel
+        NewTopping _ -> globalModel
+        GetNewTopping -> globalModel
+
+initLocal : LocalModel
+initLocal = {  time = 0
+             , state = StartingScreen
+             , mouseState = Waiting
+             , bgColour = bgBeigeDefault
+             , tableColour = tableBrown
+             , toppingColour = toppingPlaceBlueDefault
+             , buttonColour = peripheralButtonBrown
+             , crustColour = crustColourDefault}
+               
+
+initGlobal : GlobalModel
+initGlobal = {rando = []
+              , level = 1
+              , stime = 0
+              , otime = 0 }
+
+
+-- You shouldn't need to change the code below, other than the app title if you'd like
+appConfig =
+  simpleAppConfig
+    { initLocal = initLocal
+    , initGlobal = initGlobal
+    , localUpdate = localUpdate
+    , globalUpdate = globalUpdate
+    , view = view
+    , codecGlobalModel = JSON Codec.Encoders.encodeGlobalModel Codec.Decoders.decodeGlobalModel
+    , codecGlobalMsg = JSON Codec.Encoders.encodeGlobalMsg Codec.Decoders.decodeGlobalMsg
+    }
+
+main : TEASyncGSVGAppWithTick () LocalModel GlobalModel LocalMsg GlobalMsg
+main = 
+  teaSyncAppSimpleWithTick Types.Tick 
+    appConfig
+
+view : LocalModel -> GlobalModel -> { title: String, body : Collage (TEASync.Msg LocalMsg GlobalMsg GlobalModel) }
+view localModel globalModel = 
+  {
+    title = "My App Title"
+  , body = collage 192 128 (myShapes localModel globalModel)
+  }
+
+
+_______________________________________________________________________________________________________________________________________________________
+
+import GraphicSVG.EllieApp exposing(..)
+import GraphicSVG exposing (Shape, Color)
+import Graphics exposing (..)
+import Dict exposing (Dict)
+import Graphics exposing (..)
+
+{-
+REQUIRED TYPES
+The following types must exist for TEASync to function:
+- LocalMsg
+- GlobalMsg
+- LocalModel
+- GlobalModel
+
+You are free to change these as you would like, but don't
+rename them.
+-}
+
+
+
+type State = StartingScreen
+            | PlayingScreen
+            | SingleScreen
+            | WinningScreenNext
+            | LosingScreenNext
+            
+type MouseState = Waiting
+                  | Dragging (Float,Float)
+
+type OverlayState = MenuScreen
+                   | Settings
+                   | None
+                  
+
+type alias Pizza = {toppings : Dict Int (Shape Msg), cheese : Bool}
+
+
+type LocalMsg 
+    = Tick Float GetKeyState
+          | Go2Multiplayer
+          | Go2Singleplayer
+          | LetGo
+          | NewPos (Float,Float)
+          | MovePos (Float,Float)
+          | Exit
+
+
+type alias LocalModel = { state : State
+                         , overlay : OverlayState
+                         , mouseState : MouseState
+                         , bgColour : Color
+                         , tableColour : Color
+                         , toppingColour : Color
+                         , buttonColour : Color
+                         , crustColour : Color}
+                         
+
+type GlobalMsg
+    = TimeUp
+    | Done
+    | NewTopping Int
+    | GetNewTopping
+    | Restart
+
+type alias GlobalModel = {
+                          level : Int
+                         , time : Float
+                         , stime : Float
+                         , otime : Float
+                         , rando : List Int}
+    
+
+{- 
+USER-DEFINED TYPES
+You can define as many types as you'd like below, and
+you will be able to use them in your types above.
+-}
+_______________________________________________________________________________________________________________________________________________________
+
+import Graphics exposing (..)
+import Dict exposing (Dict)
+import Random
+-- Your shapes go here
+
+
+-- EDIT BY HADI ON THE MENU PAGE: Hey Tim, I coded the menu page to kind of overlay on top of the playing screen. Let
+-- me know if that's fine with you or we could make it a separate screen.
+myShapes model =
+  [
+    case model.state of
+      StartingScreen -> startingPage model
+      PlayingScreen -> [background
+                               , bell
+                               , addCheese startPizza model |> move(60,0)
+                               , addCheese startPizza model |> move(-60,0)
+                               , toppingTable model |> move(0,-2)
+                               , skeletonEnv model
+                               ,[if (model.time) <= 135 + model.stime && (model.time) >= 15 + model.stime then (text <| ((String.fromInt <| truncate ((135 + model.stime)-model.time)) ++ " sec.")) |> bold |> filled model.buttonColour
+                                 else if model.time < 15 + model.stime then text "120 sec." |> bold |> filled model.buttonColour
+                                 else losingScreen |> scale 1.2 |> move(15,-35)
+                                 ] |> group |> scale 0.8 |> move(-15,35)
+                               , if model.state == PlayingScreen then
+                                   if model.time < 15 + model.stime then 
+                                     if model.time < 8 + model.stime then 
+                                        order model |> move(0,100 + (-20*((model.time - model.stime)-3)))
+                                     else if model.time >= 8 + model.stime && model.time < 13 + model.stime then
+                                         order model
+                                     else 
+                                       order model |> makeTransparent (0.2^(model.time-(13+model.stime)))
+                                   else group []
+                                 else group []
+                               , let
+                                   (x,y) = model.pos
+                                 in
+                                   text (String.fromInt <| truncate x) |> filled black |> move(10,10)
+                               , if model.overlay == MenuScreen then
+                                     if model.time <= 9.6+model.otime then
+                                       menuPage |> move((120/pi)*(atan (2.5*(model.time-model.otime) - 5)) - 103,0)
+                                     else
+                                       menuPage |> move(-45,0)
+                                 else
+                                   group []
+                               ] |> group
+                         
+      SingleScreen -> group []
+      WinningScreenNext -> winnerScreen
+      LosingScreenNext -> losingScreen
+                        
+  ] ++
+  ( case model.state of
+     PlayingScreen -> model.topping 
+                        |> List.map drawToppings
+     _ -> []
+      
+  
+  )
+    ++
+{-  ( case model.mouseState of 
+      Waiting -> []
+      Dragging tshape pt ->
+        [rect 190 126 |> filled (rgba 0 0 0 0.01)
+          |> notifyMouseMoveAt MovePos
+          |> notifyMouseUp LetGo
+          |> notifyLeave LetGo
+        ]
+  ) -}
+      
+    (case model.dragShape of
+        WaitingS -> [text "Waiting" |> filled black |> move (30,30)]
+        _ -> [text "dragging" |> filled black |> move(30,30)])
+    ++
+    (case model.dragShape of
+        WaitingS -> []
+        DraggingShape topping pt -> [drawDrag topping |> move pt]
+        DraggingTShape tshape pt -> [drawshape tshape |> move pt])
+   ++
+  ( case model.dragShape of 
+      WaitingS -> []
+      DraggingShape topping pt ->
+        [rect 192 128 |> filled (rgba 255 0 0 0.5)
+          |> notifyMouseMoveAt MovePos
+          |> notifyMouseUp LetGo
+          |> notifyLeave LetGo
+          |> notifyMouseUp (UpdateShape topping pt)
+        ]
+      DraggingTShape tshape pt ->
+        [rect 192 128 |> filled (rgba 0 255 0 0.5)
+           |> notifyMouseMoveAt MovePos
+           |> notifyMouseUp LetGo
+           |> notifyLeave LetGo
+           |> notifyMouseUpAt (UpdateTShape tshape)
+        ]
+  )
+
+
+drawshape tshape =
+              case tshape of
+                Shape Cheese _ -> cheeseTopping |> scale 0.6
+                Shape Spinach _ -> spinachTopping |>scale 0.6
+                Shape Mushroom _-> mushroomTopping |>scale 0.6
+                Shape Olives _-> olivesTopping |>scale 0.6
+                Shape Pepperoni _-> pepperoniTopping |>scale 0.6
+                Shape Pineapple _ -> pineappleTopping |>scale 0.6
+                
+drawDrag topping =
+            case topping of
+              Cheese -> cheeseTopping |> scale 0.6
+              Spinach  -> spinachTopping |>scale 0.6
+              Mushroom -> mushroomTopping |>scale 0.6
+              Olives -> olivesTopping |>scale 0.6
+              Pepperoni -> pepperoniTopping |>scale 0.6
+              Pineapple -> pineappleTopping |>scale 0.6
+              
+
+-- Add messages here
+type Msg = Tick Float GetKeyState
+          | GetNewTopping
+          | NewTopping Int
+          | Go2Multiplayer
+          | Go2Singleplayer
+          | TimeUp
+          | Restart
+          | Exit
+          | Done
+          | NewPos (Float,Float)
+          | MovePos (Float,Float)
+          | LetGo
+          | Go2MenuScreen
+          | GrabTopping Toppings (Float,Float)
+          | UpdateShape Toppings (Float,Float)
+          | GrabTShape TShape (Float,Float)
+          | UpdateTShape TShape (Float,Float)
+          -- | PickUp TShape (Float,Float)
+
+-- Different states for game
+type State = StartingScreen
+            | PlayingScreen
+            | SingleScreen
+            | WinningScreenNext
+            | LosingScreenNext
+            -- | MenuScreen
+            
+type OverlayState = MenuScreen
+                   | Settings
+                   | None
+            
+type MouseState = Waiting
+                  | Dragging TShape (Float,Float)
+            
+-- This is the type of your model
+type alias Model = { time : Float 
+                   , rando : List Int
+                   , state : State
+                   , overlay : OverlayState
+                   , mouseState : MouseState
+                   , bgColour : Color
+                   , tableColour : Color
+                   , toppingColour : Color
+                   , buttonColour : Color
+                   , crustColour : Color
+                   , level : Int
+                   , pos : (Float,Float)
+                   , stime : Float
+                   , otime : Float
+                   ,cheeseQty : Int
+                   ,spinachQty : Int
+                   ,topping : List TShape
+                   ,dragShape: DragState }
+                   
+type DragState = WaitingS
+                  | DraggingShape Toppings (Float, Float)
+                  | DraggingTShape TShape (Float,Float)
+type alias Pizza = {topping : List (Shape Msg, (Float,Float)), cheese : Bool}
+
+-- Your update function goes here
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model = 
+  case msg of
+    Tick t _ -> ( { model | time = t }, Cmd.none )
+    GetNewTopping -> (model,getNewTopping)
+    NewTopping a -> ({model | rando = model.rando ++ [a]},Cmd.none)
+    Go2Multiplayer -> ({model | stime = model.time, state = PlayingScreen},Cmd.none)
+    Go2Singleplayer -> ({model | state = SingleScreen},Cmd.none)
+    TimeUp -> ({model | state = LosingScreenNext},Cmd.none)
+    Done -> (model, Cmd.none)
+    Restart -> ({model | state = StartingScreen, overlay = None}, Cmd.none)
+    Exit -> ({model| overlay = None}, Cmd.none)
+    GrabTShape t new_pt -> ({model | dragShape = DraggingTShape (updatePos t new_pt) new_pt, topping = (updateTShape t new_pt model.topping)},Cmd.none)
+{-    NewPos pos -> 
+        case model.mouseState of 
+          Waiting ->
+            ({ model | pos = pos, mouseState = Dragging (sub model.pos pos) },Cmd.none)
+          _ -> (model,Cmd.none)
+
+
+                    -}
+          
+    Go2MenuScreen -> ({model | overlay = MenuScreen, otime = model.time}, Cmd.none)
+    GrabTopping shape pt -> 
+                      ({model | dragShape = DraggingShape shape pt},Cmd.none)
+
+    MovePos newpt -> 
+        ({model | dragShape = case model.dragShape of
+                                 DraggingShape topping pt -> DraggingShape topping newpt   
+                                 DraggingTShape tshape pt -> DraggingTShape tshape newpt
+                                 _ -> WaitingS
+                                                        },Cmd.none)
+    
+    LetGo -> 
+      ({model | dragShape = WaitingS}, Cmd.none)
+      
+    NewPos pos -> (model,Cmd.none)
+    
+    UpdateShape topping pt -> ({model | topping = (Shape topping pt)::model.topping},Cmd.none)
+    UpdateTShape tshape newpt -> ({model | topping = (updatePos tshape newpt) :: model.topping},Cmd.none)
+    
+--    _ -> (model,Cmd.none)
+    -- PickUp t new_pt -> ({model | topping = (updatePos ::model.topping)},Cmd.none)
+-- Your initial models go here
+init : Model
+init = { time = 0 
+       , rando = []
+       , state = StartingScreen
+       , overlay = None
+       , mouseState = Waiting
+       , bgColour = bgBeigeDefault
+       , tableColour = tableBrown
+       , toppingColour = toppingPlaceBlueDefault
+       , buttonColour = peripheralButtonBrown
+       , crustColour = crustColourDefault
+       , level = 1
+       , pos = (0,0)
+       , stime = 0
+       , otime = 0
+       ,cheeseQty = 1
+       ,spinachQty = 3
+       , topping = []
+       , dragShape = WaitingS}
+
+-- Mouse vectors
+sub (x,y) (u,v) = (x-u,y-v)
+add (x,y) (u,v) = (x+u,y+v)
+
+type Toppings = Cheese
+                | Spinach 
+                | Mushroom 
+                | Olives 
+                | Pepperoni 
+                | Pineapple 
+                
+type TShape = Shape Toppings (Float, Float)
+
+
+drawToppings tshape =
+            case tshape of
+              Shape Cheese pt -> cheeseTopping |> scale 0.6 |> move pt |> notifyMouseDownAt (GrabTShape tshape)
+              Shape Spinach pt -> spinachTopping|> scale 0.6 |> move pt |> notifyMouseDownAt (GrabTShape tshape)
+              Shape Mushroom pt -> mushroomTopping|> scale 0.6 |> move pt |> notifyMouseDownAt (GrabTShape tshape)
+              Shape Olives pt -> olivesTopping |> scale 0.6 |> move pt |> notifyMouseDownAt (GrabTShape tshape)
+              Shape Pepperoni pt -> pepperoniTopping |> scale 0.6 |> move pt |> notifyMouseDownAt  (GrabTShape tshape)
+              Shape Pineapple pt -> pineappleTopping |> scale 0.6 |> move pt |> notifyMouseDownAt (GrabTShape tshape)
+              
+
+updatePos tshape newpt =
+          case tshape of
+            Shape topping pt -> Shape topping newpt
+
+              
+updateTShape tshape newpt list =
+            list
+              |>List.filter (\(Shape topping pt) -> if (Shape topping pt) == tshape then False else True) 
+              
+toppings = Dict.fromList [(1,spinachTopping)
+                         ,(2,mushroomTopping)
+                         ,(3,olivesTopping)
+                         ,(4,pepperoniTopping)
+                         ,(5,pineappleTopping)
+                         ]
+orderPizza : Pizza
+orderPizza = {topping = []
+             ,cheese = True}
+             
+startPizza = {topping = []        
+             ,cheese = False}
+
+-- ALL OF THE MISC. GRAPHICS:
+skeletonEnv model = group [hintButton |> move(80,-50)
+                    ,menuIcon |> move(-80,50) |> notifyTap Go2MenuScreen
+                    ,settingsButton |> scale 0.8 |> move(120,18)
+                    ,timerIcon |> move(0,50)
+                    ]
+                       
+bell = group [curve (-41,38.013) [Pull (-40.37,37.691) (-41.12,37.369),Pull (-41.34,37.154) (-41.55,36.939),Pull (-41.77,36.510) (-41.98,36.080),Pull (-41.98,35.543) (-41.98,35.006),Pull (-41.87,34.147) (-41.77,33.288),Pull (-41.66,33.181) (-41.55,33.073),Pull (-43.81,32.859) (-46.06,32.644),Pull (-46.71,32.536) (-47.35,32.429),Pull (-48.10,32.214) (-48.85,32),Pull (-50.79,31.248) (-52.72,30.496),Pull (-54.22,29.530) (-55.73,28.563),Pull (-56.59,27.704) (-57.44,26.845),Pull (-58.20,25.986) (-58.95,25.127),Pull (-59.81,23.731) (-60.67,22.335),Pull (-61.20,21.154) (-61.74,19.973),Pull (-62.06,18.791) (-62.38,17.610),Pull (-62.60,16.214) (-62.81,14.818),Pull (-62.81,14.389) (-62.81,13.959),Pull (-62.92,13.637) (-63.03,13.315),Pull (-63.24,12.563) (-63.46,11.812),Pull (-63.57,10.738) (-63.67,9.6644),Pull (-38.65,9.6644) (-13.63,9.6644),Pull (-13.74,10.416) (-13.85,11.167),Pull (-14.06,11.704) (-14.28,12.241),Pull (-14.38,12.885) (-14.49,13.530),Pull (-14.71,13.852) (-14.92,14.174),Pull (-15.03,15.570) (-15.14,16.966),Pull (-15.24,17.288) (-15.35,17.610),Pull (-15.46,18.040) (-15.57,18.469),Pull (-16.10,20.187) (-16.64,21.906),Pull (-17.18,22.765) (-17.71,23.624),Pull (-18.89,25.234) (-20.08,26.845),Pull (-20.40,27.275) (-20.72,27.704),Pull (-21.26,28.134) (-21.79,28.563),Pull (-22.33,29.100) (-22.87,29.637),Pull (-23.73,30.067) (-24.59,30.496),Pull (-25.55,31.033) (-26.52,31.570),Pull (-27.59,31.892) (-28.67,32.214),Pull (-29.74,32.429) (-30.81,32.644),Pull (-32.53,32.751) (-34.25,32.859),Pull (-35.00,32.859) (-35.75,32.859),Pull (-35.65,33.395) (-35.54,33.932),Pull (-35.43,34.577) (-35.32,35.221),Pull (-35.54,35.973) (-35.75,36.724),Pull (-36.08,37.154) (-36.40,37.583),Pull (-37.26,37.906) (-38.12,38.228),Pull (-38.76,38.228) (-39.40,38.228),Pull (-39.51,38.228) (-39.62,38.228)] |> filled (rgb 186 189 194) |> addOutline (solid 2) black
+             ,curve (-40.91,8.5906) [Pull (-51.43,8.5906) (-61.95,8.5906),Pull (-62.17,8.4832) (-62.38,8.3758),Pull (-62.71,8.2684) (-63.03,8.1610),Pull (-63.35,7.7315) (-63.67,7.3020),Pull (-64.42,6.5503) (-65.18,5.7986),Pull (-65.61,5.0469) (-66.04,4.2953),Pull (-66.25,3.7583) (-66.46,3.2214),Pull (-66.57,2.7919) (-66.68,2.3624),Pull (-66.68,0.7516) (-66.68,-0.859),Pull (-66.57,-0.966) (-66.46,-1.073),Pull (-66.25,-1.181) (-66.04,-1.288),Pull (-38.76,-1.288) (-11.48,-1.288),Pull (-11.16,-1.181) (-10.84,-1.073),Pull (-10.84,-0.644) (-10.84,-0.214),Pull (-10.95,1.2885) (-11.06,2.7919),Pull (-11.06,3.3288) (-11.06,3.8657),Pull (-11.38,4.4026) (-11.70,4.9395),Pull (-12.02,5.5838) (-12.34,6.2281),Pull (-12.88,6.8724) (-13.42,7.5167),Pull (-14.06,7.9463) (-14.71,8.3758),Pull (-15.14,8.4832) (-15.57,8.5906),Pull (-15.78,8.5906) (-16,8.5906),Pull (-26.30,8.5906) (-36.61,8.5906),Pull (-38.76,8.5906) (-40.91,8.5906)] |> filled (rgb 116 116 116) |> addOutline (solid 2) black
+             ] |> scale 0.3 |> move(12,-60) |> notifyTap Done
+background = rect 1000 1000 |> filled init.bgColour |> move (0,0)
+settingsButton = group[curve (-62.60,49.825) [Pull (-62.92,48.214) (-63.24,46.604),Pull (-63.35,46.496) (-63.46,46.389),Pull (-63.67,46.174) (-63.89,45.959),Pull (-64.21,45.852) (-64.53,45.744),Pull (-65.93,46.281) (-67.32,46.818),Pull (-67.65,46.711) (-67.97,46.604),Pull (-68.29,46.174) (-68.61,45.744),Pull (-69.26,44.456) (-69.90,43.167),Pull (-69.90,42.953) (-69.90,42.738),Pull (-69.79,42.523) (-69.69,42.308),Pull (-69.26,41.986) (-68.83,41.664),Pull (-68.18,41.127) (-67.54,40.590),Pull (-67.54,40.375) (-67.54,40.161),Pull (-67.54,39.946) (-67.54,39.731),Pull (-67.54,39.624) (-67.54,39.516),Pull (-67.54,39.409) (-67.54,39.302),Pull (-67.54,39.194) (-67.54,39.087),Pull (-68.72,38.013) (-69.90,36.939),Pull (-69.90,36.724) (-69.90,36.510),Pull (-69.90,36.402) (-69.90,36.295),Pull (-69.79,36.080) (-69.69,35.865),Pull (-69.58,35.651) (-69.47,35.436),Pull (-68.61,34.147) (-67.75,32.859),Pull (-67.65,32.859) (-67.54,32.859),Pull (-67.43,32.859) (-67.32,32.859),Pull (-65.93,33.288) (-64.53,33.718),Pull (-64.42,33.718) (-64.32,33.718),Pull (-64,33.610) (-63.67,33.503),Pull (-63.57,33.395) (-63.46,33.288),Pull (-63.35,33.073) (-63.24,32.859),Pull (-63.14,32.536) (-63.03,32.214),Pull (-62.81,31.248) (-62.60,30.281),Pull (-62.60,30.067) (-62.60,29.852),Pull (-62.49,29.852) (-62.38,29.852),Pull (-62.28,29.744) (-62.17,29.637),Pull (-61.85,29.637) (-61.53,29.637),Pull (-59.59,29.744) (-57.66,29.852),Pull (-57.23,31.570) (-56.80,33.288),Pull (-56.48,33.503) (-56.16,33.718),Pull (-55.94,33.825) (-55.73,33.932),Pull (-54.33,33.395) (-52.93,32.859),Pull (-51.65,34.899) (-50.36,36.939),Pull (-50.57,37.369) (-50.79,37.798),Pull (-51.75,38.657) (-52.72,39.516),Pull (-52.72,39.946) (-52.72,40.375),Pull (-52.40,40.697) (-52.08,41.020),Pull (-51.22,41.879) (-50.36,42.738),Pull (-51.54,44.885) (-52.72,47.033),Pull (-54.33,46.496) (-55.94,45.959),Pull (-56.16,45.959) (-56.37,45.959),Pull (-56.69,46.174) (-57.02,46.389),Pull (-57.34,48) (-57.66,49.610),Pull (-57.66,49.718) (-57.66,49.825),Pull (-60.02,49.825) (-62.38,49.825)] |> filled init.buttonColour
+                      ,circle 2 |> filled init.bgColour |> scale 1.7 |> move(-60,40)
+                      ]
+menuIcon = group[
+             roundedRect 20 8 3 |> filled init.buttonColour |> move(0,10)
+            ,roundedRect 20 8 3 |> filled init.buttonColour |> move(0,0)
+            ,roundedRect 20 8 3 |> filled init.buttonColour |> move(0,-10)
+           ] |> scale 0.5
+timerIcon = group [circle 10 |> outlined (solid 2) init.buttonColour
+                  ,rect 2 4 |> filled init.buttonColour|> move(0,11)
+                  ,rect 4 2 |> filled init.buttonColour |> move(0,13)
+                  ,group[rect 2 4 |> filled init.buttonColour |> move(0,11)
+                        ,rect 4 2 |> filled init.buttonColour |> move(0,13)] |> rotate (degrees -30)
+                  ,wedge 8 0.05 |> filled init.buttonColour |> scaleY 0.25 |> rotate (degrees -90) |> move (0,7)
+                  ,wedge 8 0.05 |> filled init.buttonColour |> scaleY 0.25 |> rotate (degrees 180) |> move (7.6,-0.5)
+                  ] |> scale 0.7
+pizza1Shape = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,-10)
+                ,circle 7 |>filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,-10)
+                ,circle 26 |> outlined (solid 1) init.toppingColour |> move(0,0)]
+              
+pizza2Shape = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-10,-10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(10,-10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,0)
+                ,circle 26 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)]
+                
+pizza3Shape = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,15)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,0)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(0,-15)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(-15,0)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) init.toppingColour |> move(15,0)
+              ,circle 26 |> outlined (solid 1) init.toppingColour |> move(0,0)]
+
+toppingTable model = group[
+               roundedRect 10 21 3 |> filled init.tableColour |> move(0,-1.5) |> scale 5
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,30)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,15)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,0)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-15)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,-30)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-45)
+               ,cheeseTopping |> move(-11,32)
+                 |>notifyMouseDownAt (GrabTopping Cheese)
+               ,spinachTopping |> scale 0.8 |> move (9,15)
+                 |>notifyMouseDownAt (GrabTopping Spinach)
+               ,mushroomTopping |> scale 0.8 |> move(-9,0) 
+                 |>notifyMouseDownAt (GrabTopping Mushroom)
+               ,pineappleTopping |> scale 0.7 |> move(9,-15)
+                 |>notifyMouseDownAt (GrabTopping Pineapple)
+               ,olivesTopping |> scale 0.8 |> move (-9,-30)
+                 |>notifyMouseDownAt (GrabTopping Olives)
+               ,pepperoniTopping |> scale 0.8 |> move(9,-45)
+                 |>notifyMouseDownAt (GrabTopping Pepperoni)
+               ] |> scale 0.7
+               
+startingPage model =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    [roundedRect 70 17 4
+      |> filled buttonGreen
+      |> move (-40,-20)
+    ,text "Multiplayer"
+      |> filled textColourBeige
+      |> move (-68,-23)] |> group |> notifyTap Go2Multiplayer |> notifyTap GetNewTopping |> notifyTap GetNewTopping |> notifyTap GetNewTopping |> notifyTap GetNewTopping |> notifyTap GetNewTopping
+    ,
+    [roundedRect 80 17 4
+      |> filled buttonGreen
+      |> move (40,-20)
+    ,text "Single Player"
+      |> filled textColourBeige
+      |> move (7,-23)] |> group |> notifyTap Go2Singleplayer
+    ,
+    text "Pizza"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,40)
+    ,
+    text "Multiplayer"
+      |> filled textColourBeige
+      |> scale 1.7
+      |> move (-50,10)
+  ]
+
+menuPage =
+  group
+  [
+    roundedRect 110 120 4
+      |> filled black
+      |> move(2,0)
+    ,
+    roundedRect 110 120 4
+      |> filled textColourBeige
+    ,
+    text "Menu"
+      |> filled black
+      |> scale 1.5
+      |> move (-20,40)
+    ,
+    line (-40,35) (40,35)
+      |> outlined (solid 1) black
+    ,
+    text "Best Time: 0 seconds"
+      |> filled black
+      |> scale 0.7
+      |> move (-35,20)
+    ,
+    text "Displayed Name:"
+      |> filled black
+      |> scale 0.7
+      |> move (-35,10)
+    ,
+    roundedRect 70 10 2
+      |> filled white
+    ,
+    roundedRect 60 12 6
+      |> filled bgRed
+      |> move (0, -20)
+    ,
+    roundedRect 22 13 6
+      |> filled bgRed
+      |> move (-30,-35)
+    ,
+    roundedRect 22 13 6
+      |> filled bgRed
+      |> move (30,-35)
+    ,
+    text "Have Feedback? Let us know"
+      |> underline
+      |> filled blue
+      |> scale 0.4
+      |> move (-30,-55)
+    ,
+    text "Leaderboard"
+      |> filled textColourBeige
+      |> scale 0.7
+      |> move (-22,-23)
+    ,
+    text "Exit"
+      |> filled textColourBeige
+      |> scale 0.7
+      |> move (-37,-38)
+      |> notifyTap Exit
+    ,
+    text "Reset"
+      |> filled textColourBeige
+      |> scale 0.6
+      |> move (22,-37)
+      |> notifyTap Restart
+  ]
+  
+  
+leaderboardPage =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed  
+    ,
+    text "Leaderboard"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-40,45)
+    ,
+    text "X"
+      |> filled white
+      |> scale 1
+      |> move (85,54)
+    ,
+    text "Name 1"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,25)
+    ,
+    text "Name 2"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,10)
+    ,
+    text "Name 3"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,-5)
+    ,
+    text "Score"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (30,25)
+  ]
+
+losingScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (0,-25)  
+      |> notifyTap Restart
+    ,
+    text "Time"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,20)
+    ,
+    text "Over!"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,5)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-34,-28)  
+  ]
+  
+finalScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (0,-25)  
+    ,
+    text "Final"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,20)
+    ,
+    text "Round"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-26,5)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-34,-29)  
+  ]
+  
+winnerScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (-3,-25)  
+    ,
+    text "Completed"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-42,40)
+    ,
+    text "In"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-15,20)
+    ,
+    text "0 Seconds"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-43,0)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-37,-28)
+  ]
+-- MODIFYING PIZZA ORDER:
+addCheese : Pizza -> Model -> Shape Msg
+addCheese pizza model =
+      let 
+          freshPizza1 = [circle 30 |> filled init.crustColour |> move(0,0)
+                         ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza1Shape
+          cheesePizza1 = [circle 30 |> filled init.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza1Shape
+
+          freshPizza2 = [circle 30 |> filled init.crustColour |> move(0,0)
+                         ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza2Shape
+          cheesePizza2 = [circle 30 |> filled init.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza2Shape
+
+          freshPizza3 = [circle 30 |> filled init.crustColour |> move(0,0)
+                          ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza3Shape
+          cheesePizza3 = [circle 30 |> filled init.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza3Shape
+      in
+        case model.level of
+            1 -> if pizza.cheese then cheesePizza1 |> group else freshPizza1 |> group
+            2 -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+            3 -> if pizza.cheese then cheesePizza3 |> group else freshPizza3 |> group
+            _ -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+
+oneToFive : Random.Generator Int
+oneToFive = Random.int 1 5
+
+getNewTopping : Cmd Msg
+getNewTopping =
+  Random.generate NewTopping oneToFive
+  
+generateToppings : Pizza -> Model -> Pizza
+generateToppings pizza model = 
+    let
+      topping1 = case model.rando of 
+                    x :: _ -> x
+                    [] -> 1
+      topping2 = case model.rando of 
+                    x :: y :: _ -> y
+                    [] -> 1
+                    _ -> 1
+      topping3 = case model.rando of 
+                    x :: y :: z :: _ -> z
+                    [] -> 1
+                    _ -> 1
+      topping4 = case model.rando of 
+                    x :: y :: z :: a :: _ -> a
+                    [] -> 1
+                    _ -> 1
+      topping5 = case model.rando of 
+                    _ :: x :: [] -> x
+                    [] -> 1
+                    _ -> 1
+      
+      shapeTopping1 = case (Dict.get topping1 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping2 = case (Dict.get topping2 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping3 = case (Dict.get topping3 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping4 = case (Dict.get topping4 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+                                 
+      shapeTopping5 = case (Dict.get topping5 toppings) of
+                                 Just a -> a 
+                                 Nothing -> group []
+      topping = case model.level of 
+                   1 -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ]}
+                               
+                   2 -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ,(shapeTopping5,(0,0))
+                                            ]}
+                   3 -> {pizza | topping = [(shapeTopping1,(0,15))
+                                            ,(shapeTopping2,(0,-15))
+                                            ,(shapeTopping3,(-15,0))
+                                            ,(shapeTopping4,(15,0))
+                                            ,(shapeTopping5,(0,0))
+                                            ]}
+                   _ -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ]}
+    in
+      topping
+
+getToppingShapes : List (Shape Msg, (Float,Float)) -> List (Shape Msg)
+getToppingShapes ls =
+          case ls of
+            (a,xy) :: xs -> [a |> scale 0.5 |> move xy] ++ (getToppingShapes xs)
+            [] -> []
+            
+generatePizzaOrder : Pizza -> Model -> Shape Msg
+generatePizzaOrder pizza model =
+        let 
+          {topping, cheese} = pizza
+        in 
+          [addCheese pizza model
+          ,(getToppingShapes topping) |> group
+          ] |> group
+          
+order model = [receipt |> move(-10,0)
+        ,text "ORDER" |> size 18 |> filled black |> move(-30,40)
+        , generatePizzaOrder (generateToppings orderPizza model) model |> move(0,5)
+        , textWrap (textOrder model.rando model) |> move(0,-33)
+        ] |> group |> move(0,0)
+        
+textOrder: List Int -> Model -> String
+textOrder ls model =
+      let 
+        list = case model.level of
+                  1 -> List.take 4 ls
+                  2 -> ls
+                  3 -> ls
+                  _ -> List.take 4 ls
+      in
+        case list of
+          [] -> ""
+          x :: [] -> case x of
+                       1 -> "and spinach."
+                       2 -> "and mushroom."
+                       3 -> "and olives."
+                       4 -> "and pepperoni."
+                       5 -> "and pineapple."
+                       _ -> ""      
+          x :: y :: [] -> case x of
+                       1 -> "\nspinach " ++ (textOrder [y] model)
+                       2 -> "\nmushroom " ++ (textOrder [y] model)
+                       3 -> "\nolives " ++ (textOrder [y] model)
+                       4 -> "\npepperoni " ++ (textOrder [y] model)
+                       5 -> "\npineapple " ++ (textOrder [y] model)
+                       _ -> "\n " ++ (textOrder [y] model)
+          x :: xs -> case x of 
+                      1 -> "spinach, " ++ (textOrder xs model)
+                      2 -> "mushroom, " ++ (textOrder xs model)
+                      3 -> "olives, " ++ (textOrder xs model)
+                      4 -> "pepperoni, " ++ (textOrder xs model)
+                      5 -> "pineapple, " ++ (textOrder xs model)
+                      _ -> " "
+                    
+textWrap : String -> Shape Msg
+textWrap str = 
+    let 
+      lines =  String.lines str
+      line1 = case (List.head lines) of 
+                Just a -> a
+                Nothing -> " "
+      line2 = case (List.head (List.reverse lines)) of 
+                Just a -> a
+                Nothing -> " "
+                
+    in
+       if String.contains "\n" str then
+         [text "Order of cheese pizza with " |> centered |> size 4.5 |> bold |> filled black |> move(0,0)
+         ,text (line1) |> centered |> size 4.5 |> bold |> filled black |> move(0,-5)
+         ,text line2 |> centered |> size 4.5 |> bold |> filled black |> move(0,-10)
+         ] |> group
+       else
+         text ("Order of " ++ (line1)) |> centered |> size 4.5 |> bold |> filled black |> move(0,0)
+         
+
+        
+-- Your subscriptions go here
+subscriptions : Model -> Sub Msg
+subscriptions model = Sub.none
+
+-- Your main function goes here
+main : EllieAppWithTick () Model Msg
+main = 
+  ellieAppWithTick Tick 
+    { init = \flags -> (init, Cmd.none)
+    , view = view
+    , update = update
+    , subscriptions = subscriptions
+    }
+
+-- You view function goes here
+view : Model -> { title: String, body : Collage Msg }
+view model = 
+  {
+    title = "My App Title"
+  , body = collage 192 128 (myShapes model)
+  }
+
