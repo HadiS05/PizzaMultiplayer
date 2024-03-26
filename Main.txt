@@ -1,0 +1,1175 @@
+-- Your shapes go here
+import GraphicSVG.EllieApp exposing(..)
+import Dict exposing (Dict)
+import Random
+import TEASync.Helpers exposing(..)
+import Task
+
+myShapes localModel globalModel =
+  [case localModel.localState of
+    AtMainMenu -> let
+                    player = case globalModel.gameState of
+                                PlayerOneJoined -> PlayerTwo
+                                _ -> case localModel.localState of
+                                        PlayingGame _ p -> p
+                                        _ -> PlayerOne
+                  in
+                    group [rect 1080 1920 
+                            |> filled bgRed
+                          ,
+                          [roundedRect 70 17 4
+                            |> filled buttonGreen
+                            |> move (-40,-20)
+                          ,text "Multiplayer"
+                            |> filled textColourBeige
+                            |> move (-68,-23)] |> group |> notifyTap (LocalMsg <| LocalPlayerJoin player)
+                          ,
+                          [roundedRect 80 17 4
+                            |> filled buttonGreen
+                            |> move (40,-20)
+                          ,text "Single Player"
+                            |> filled textColourBeige
+                            |> move (7,-23)] |> group |> notifyTap (LocalMsg <| Go2Singleplayer player)
+                          ,
+                          text "Pizza"
+                            |> filled textColourBeige
+                            |> scale 1.5
+                            |> move (-20,40)
+                          ,
+                          text "Multiplayer"
+                            |> filled textColourBeige
+                            |> scale 1.7
+                            |> move (-50,10)
+                        ]
+    InLobby player -> group [rect 1080 1920 
+                                |> filled bgRed
+                              ,text ("Hello " ++ (if player == PlayerOne then "Player 1" else "Player 2") ++ "!")
+                                    |> centered 
+                                    |> fixedwidth
+                                    |> size 6
+                                    |> filled textColourBeige
+                                    |> move (0, 20)
+                              , text (if globalModel.gameState == PlayerOneJoined then "Waiting for Player 2." else "Both players joined.")
+                                    |> centered 
+                                    |> fixedwidth
+                                    |> size 6
+                                    |> filled textColourBeige
+                                    |> move (0, 10)
+                              , group
+                                    [
+                                      roundedRect 80 20 5 |> filled (if globalModel.gameState /= PlayerTwoJoined then grey else buttonGreen)
+                                    , text "Start Game"
+                                        |> centered 
+                                        |> fixedwidth
+                                        |> filled (if globalModel.gameState /= PlayerTwoJoined then white else textColourBeige)
+                                        |> move (0, -4)
+                                    ]
+                                    |> move (0, -20)
+                                    |> (if globalModel.gameState == PlayerTwoJoined then notifyTap (GlobalMsg <| StartGame MultiPlayer)                                                 
+                                       else identity)
+                              ]
+    PlayingGame localGameState player ->if  globalModel.gameState /= Playing then
+                                            [rect 1920 1080
+                                              |> filled bgRed
+                                            ,text "It seems a player has left."
+                                              |> centered
+                                              |>fixedwidth
+                                              |> filled textColourBeige
+                                            ] |> group
+                                        else
+                                          let
+                                              time = localModel.time - localModel.stime
+                                              totalTime = globalModel.alottedTime - 15
+                                              remainingTime = globalModel.alottedTime - time
+                                           in
+                                              case localGameState of
+                                                MultiPlayer -> if time <= globalModel.alottedTime && time >= 15 then 
+                                                                [background localModel
+                                                                , bell
+                                                                , addCheese startPizza localModel globalModel |> move(60,0)
+                                                                , addCheese startPizza localModel globalModel |> move(-60,0)
+                                                                , toppingTable localModel |> move(0,-2)
+                                                                , skeletonEnv localModel
+                                                                , (text <| ((String.fromInt <| truncate remainingTime) ++ " sec.")) |> centered |> bold |> filled (if time >= globalModel.alottedTime - 10 then red else localModel.buttonColour) |> scale 0.8 |> move(0,34)
+                                                                , if localGameState == MultiPlayer then
+                                                                     if time < 15 then 
+                                                                         if time < 8 then 
+                                                                             order localModel globalModel |> move(0,100 + (-20*((localModel.time - localModel.stime)-3)))
+                                                                         else if localModel.time >= 8 + localModel.stime && localModel.time < 13 +localModel.stime then
+                                                                              order localModel globalModel
+                                                                         else 
+                                                                              order localModel globalModel |> makeTransparent (0.2^(localModel.time-(13+localModel.stime)))
+                                                                    else group []
+                                                                  else group []] |> group
+                                                              else if time < 15 then
+                                                                  [background localModel
+                                                                  , bell
+                                                                  , addCheese startPizza localModel globalModel |> move(60,0)
+                                                                  , addCheese startPizza localModel globalModel |> move(-60,0)
+                                                                  , toppingTable localModel |> move(0,-2)
+                                                                  , skeletonEnv localModel
+                                                                  , text ((String.fromInt (truncate <| totalTime)) ++ " sec.") |> centered |> bold |> filled localModel.buttonColour |> scale 0.8 |> move(0,34)
+                                                                  , if localGameState == MultiPlayer then
+                                                                       if localModel.time < 15 + localModel.stime then 
+                                                                           if localModel.time < 8 + localModel.stime then 
+                                                                               order localModel globalModel |> move(0,100 + (-20*((localModel.time - localModel.stime)-3)))
+                                                                           else if localModel.time >= 8 + localModel.stime && localModel.time < 13 +localModel.stime then
+                                                                                order localModel globalModel
+                                                                           else 
+                                                                                order localModel globalModel |> makeTransparent (0.2^(localModel.time-(13+localModel.stime)))
+                                                                      else group []
+                                                                    else group []] |> group
+                                                                else 
+                                                                  losingScreen
+                                                SinglePlayer -> group []
+  ,(menuIcon localModel) |> move(-80,50)
+  ,(settingsButton localModel) |> scale 0.8 |> move(120,18)
+  ,if localModel.overlay == MenuScreen then
+    if localModel.time <= 4.25+localModel.otime then
+      menuPage globalModel localModel |> move((120/pi)*(atan (2.5*(localModel.time-localModel.otime) - 5)) - 98.3,0)
+    else
+      menuPage globalModel localModel |> move(-45,0)
+    else if localModel.overlay == Settings then
+      if localModel.time <= 4.25+localModel.otime then
+        settingsPage |> move((120/pi)*(atan (-2.5*(localModel.time-localModel.otime) + 5)) + 98.3,0)
+      else
+        settingsPage |> move(45,0)
+    else if localModel.overlay == Quit then
+        quitBox globalModel localModel
+    else
+      group []] 
+      ++
+   (case localModel.mouseState of 
+     Waiting -> []
+     Draggingshape topping pt -> [(drawTopping topping) |> move pt] --drawTopping topping |> move pt 
+     DraggingTShape tshape pt -> [ (drawTShape tshape pt)]  
+   )
+      ++
+   ( 
+   let
+       time = localModel.time - localModel.stime
+     in
+       case time <= globalModel.alottedTime && time >= 15 of
+         True-> globalModel.toppings
+                 |> List.map (\(Shape topping pt) -> drawTShape (Shape topping pt) pt)
+         _-> [] 
+   )
+   ++
+   ( case localModel.mouseState of 
+      Waiting -> []
+      Draggingshape topping pt ->
+        [rect 192 128 |> filled (rgba 0 0 0 0.7)
+          |> notifyMouseMoveAt (MovePos >> LocalMsg)
+          |> notifyMouseUp (LocalMsg(LetGo))
+          |> notifyLeave (LocalMsg(LetGo))
+          |> notifyMouseUp (GlobalMsg(UpdateShape topping pt))
+        ]
+      DraggingTShape tshape pt -> 
+        [rect 192 128 |> filled (rgba 0 0 0 0.7)
+          |> notifyMouseMoveAt (MovePos >> LocalMsg)
+          |> notifyMouseUp (LocalMsg(LetGo))
+          |> notifyLeave (LocalMsg(LetGo))
+          |> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
+         ]
+   
+   )
+
+drawTopping topping =
+            case topping of
+              Cheese -> cheeseTopping |> scale 0.6
+              Spinach  -> spinachTopping |>scale 0.6
+              Mushroom -> mushroomTopping |>scale 0.6
+              Olives -> olivesTopping |>scale 0.6
+              Pepperoni -> pepperoniTopping |>scale 0.6
+              Pineapple -> pineappleTopping |>scale 0.6
+              _ -> rect 0 0 |> filled (rgba 0 0 0 0)
+
+drawTShape tshape newpt =
+            case tshape of
+              Shape Cheese pt -> cheeseTopping |> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
+              Shape Spinach pt -> spinachTopping|> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
+              Shape Mushroom pt -> mushroomTopping|> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
+              Shape Olives pt -> olivesTopping |> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
+              Shape Pepperoni pt -> pepperoniTopping |> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
+              Shape Pineapple pt -> pineappleTopping |> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
+              _ -> rect 0 0 |> filled (rgba 0 0 0 0)
+              
+updateTShape toppingsL tshape newpt =
+    let   
+      new_toppingL =
+         toppingsL 
+            |>List.filter (\(tshape2) -> if (tshape2) == tshape then False else True) 
+    in
+    case tshape of
+      Shape topping pt -> Shape topping newpt :: new_toppingL
+ -- case tshape of
+ --   Shape topping pt -> (Shape topping newpt) :: new_toppings
+
+sub (x,y) (u,v) = (x-(1.5*u),y-(1.5*v))
+add (x,y) (u,v) = (x+(1.5*u),y+(1.5*v))
+
+orderPizza : Pizza
+orderPizza = {topping = []
+             ,cheese = True}
+             
+startPizza = {topping = []
+             ,cheese = False}
+
+toppings = Dict.fromList [(1,Spinach)
+                         ,(2,Mushroom)
+                         ,(3,Olives)
+                         ,(4,Pepperoni)
+                         ,(5,Pineapple)
+                         ]
+-- ALL OF THE MISC. GRAPHICS:
+skeletonEnv localModel = group [hintButton |> move(80,-50)
+                    ,(menuIcon localModel) |> move(-80,50)
+                    ,(settingsButton localModel) |> scale 0.8 |> move(120,18)
+                    ,(timerIcon localModel) |> move(0,50)
+                    ]
+                       
+bell = group [curve (-39.62,38.013) [Pull (-40.37,37.691) (-41.12,37.369),Pull (-41.34,37.154) (-41.55,36.939),Pull (-41.77,36.510) (-41.98,36.080),Pull (-41.98,35.543) (-41.98,35.006),Pull (-41.87,34.147) (-41.77,33.288),Pull (-41.66,33.181) (-41.55,33.073),Pull (-43.81,32.859) (-46.06,32.644),Pull (-46.71,32.536) (-47.35,32.429),Pull (-48.10,32.214) (-48.85,32),Pull (-50.79,31.248) (-52.72,30.496),Pull (-54.22,29.530) (-55.73,28.563),Pull (-56.59,27.704) (-57.44,26.845),Pull (-58.20,25.986) (-58.95,25.127),Pull (-59.81,23.731) (-60.67,22.335),Pull (-61.20,21.154) (-61.74,19.973),Pull (-62.06,18.791) (-62.38,17.610),Pull (-62.60,16.214) (-62.81,14.818),Pull (-62.81,14.389) (-62.81,13.959),Pull (-62.92,13.637) (-63.03,13.315),Pull (-63.24,12.563) (-63.46,11.812),Pull (-63.57,10.738) (-63.67,9.6644),Pull (-38.65,9.6644) (-13.63,9.6644),Pull (-13.74,10.416) (-13.85,11.167),Pull (-14.06,11.704) (-14.28,12.241),Pull (-14.38,12.885) (-14.49,13.530),Pull (-14.71,13.852) (-14.92,14.174),Pull (-15.03,15.570) (-15.14,16.966),Pull (-15.24,17.288) (-15.35,17.610),Pull (-15.46,18.040) (-15.57,18.469),Pull (-16.10,20.187) (-16.64,21.906),Pull (-17.18,22.765) (-17.71,23.624),Pull (-18.89,25.234) (-20.08,26.845),Pull (-20.40,27.275) (-20.72,27.704),Pull (-21.26,28.134) (-21.79,28.563),Pull (-22.33,29.100) (-22.87,29.637),Pull (-23.73,30.067) (-24.59,30.496),Pull (-25.55,31.033) (-26.52,31.570),Pull (-27.59,31.892) (-28.67,32.214),Pull (-29.74,32.429) (-30.81,32.644),Pull (-32.53,32.751) (-34.25,32.859),Pull (-35.00,32.859) (-35.75,32.859),Pull (-35.65,33.395) (-35.54,33.932),Pull (-35.43,34.577) (-35.32,35.221),Pull (-35.54,35.973) (-35.75,36.724),Pull (-36.08,37.154) (-36.40,37.583),Pull (-37.26,37.906) (-38.12,38.228),Pull (-38.76,38.228) (-39.40,38.228),Pull (-39.51,38.228) (-39.62,38.228)] |> filled (rgb 186 189 194) |> addOutline (solid 2) black
+             ,curve (-40.91,8.5906) [Pull (-51.43,8.5906) (-61.95,8.5906),Pull (-62.17,8.4832) (-62.38,8.3758),Pull (-62.71,8.2684) (-63.03,8.1610),Pull (-63.35,7.7315) (-63.67,7.3020),Pull (-64.42,6.5503) (-65.18,5.7986),Pull (-65.61,5.0469) (-66.04,4.2953),Pull (-66.25,3.7583) (-66.46,3.2214),Pull (-66.57,2.7919) (-66.68,2.3624),Pull (-66.68,0.7516) (-66.68,-0.859),Pull (-66.57,-0.966) (-66.46,-1.073),Pull (-66.25,-1.181) (-66.04,-1.288),Pull (-38.76,-1.288) (-11.48,-1.288),Pull (-11.16,-1.181) (-10.84,-1.073),Pull (-10.84,-0.644) (-10.84,-0.214),Pull (-10.95,1.2885) (-11.06,2.7919),Pull (-11.06,3.3288) (-11.06,3.8657),Pull (-11.38,4.4026) (-11.70,4.9395),Pull (-12.02,5.5838) (-12.34,6.2281),Pull (-12.88,6.8724) (-13.42,7.5167),Pull (-14.06,7.9463) (-14.71,8.3758),Pull (-15.14,8.4832) (-15.57,8.5906),Pull (-15.78,8.5906) (-16,8.5906),Pull (-26.30,8.5906) (-36.61,8.5906),Pull (-38.76,8.5906) (-40.91,8.5906)] |> filled (rgb 116 116 116) |> addOutline (solid 2) black
+             ] |> scale 0.3 |> move(11,-60) |> notifyTap (GlobalMsg <| Done)
+background localModel = rect 1000 1000 |> filled localModel.bgColour |> move (0,0)
+settingsButton localModel = group[curve (-62.60,49.825) [Pull (-62.92,48.214) (-63.24,46.604),Pull (-63.35,46.496) (-63.46,46.389),Pull (-63.67,46.174) (-63.89,45.959),Pull (-64.21,45.852) (-64.53,45.744),Pull (-65.93,46.281) (-67.32,46.818),Pull (-67.65,46.711) (-67.97,46.604),Pull (-68.29,46.174) (-68.61,45.744),Pull (-69.26,44.456) (-69.90,43.167),Pull (-69.90,42.953) (-69.90,42.738),Pull (-69.79,42.523) (-69.69,42.308),Pull (-69.26,41.986) (-68.83,41.664),Pull (-68.18,41.127) (-67.54,40.590),Pull (-67.54,40.375) (-67.54,40.161),Pull (-67.54,39.946) (-67.54,39.731),Pull (-67.54,39.624) (-67.54,39.516),Pull (-67.54,39.409) (-67.54,39.302),Pull (-67.54,39.194) (-67.54,39.087),Pull (-68.72,38.013) (-69.90,36.939),Pull (-69.90,36.724) (-69.90,36.510),Pull (-69.90,36.402) (-69.90,36.295),Pull (-69.79,36.080) (-69.69,35.865),Pull (-69.58,35.651) (-69.47,35.436),Pull (-68.61,34.147) (-67.75,32.859),Pull (-67.65,32.859) (-67.54,32.859),Pull (-67.43,32.859) (-67.32,32.859),Pull (-65.93,33.288) (-64.53,33.718),Pull (-64.42,33.718) (-64.32,33.718),Pull (-64,33.610) (-63.67,33.503),Pull (-63.57,33.395) (-63.46,33.288),Pull (-63.35,33.073) (-63.24,32.859),Pull (-63.14,32.536) (-63.03,32.214),Pull (-62.81,31.248) (-62.60,30.281),Pull (-62.60,30.067) (-62.60,29.852),Pull (-62.49,29.852) (-62.38,29.852),Pull (-62.28,29.744) (-62.17,29.637),Pull (-61.85,29.637) (-61.53,29.637),Pull (-59.59,29.744) (-57.66,29.852),Pull (-57.23,31.570) (-56.80,33.288),Pull (-56.48,33.503) (-56.16,33.718),Pull (-55.94,33.825) (-55.73,33.932),Pull (-54.33,33.395) (-52.93,32.859),Pull (-51.65,34.899) (-50.36,36.939),Pull (-50.57,37.369) (-50.79,37.798),Pull (-51.75,38.657) (-52.72,39.516),Pull (-52.72,39.946) (-52.72,40.375),Pull (-52.40,40.697) (-52.08,41.020),Pull (-51.22,41.879) (-50.36,42.738),Pull (-51.54,44.885) (-52.72,47.033),Pull (-54.33,46.496) (-55.94,45.959),Pull (-56.16,45.959) (-56.37,45.959),Pull (-56.69,46.174) (-57.02,46.389),Pull (-57.34,48) (-57.66,49.610),Pull (-57.66,49.718) (-57.66,49.825),Pull (-60.02,49.825) (-62.38,49.825)] |> filled localModel.buttonColour
+                      ,circle 2 |> filled localModel.bgColour |> scale 1.7 |> move(-60,40)
+                      ] |> notifyTap (LocalMsg <| Go2Settings)
+menuIcon localModel = group[
+             roundedRect 20 8 3 |> filled localModel.buttonColour |> move(0,10)
+            ,roundedRect 20 8 3 |> filled localModel.buttonColour |> move(0,0)
+            ,roundedRect 20 8 3 |> filled localModel.buttonColour |> move(0,-10)
+           ] |> scale 0.5 |> notifyTap (LocalMsg <| Go2MenuScreen)
+           
+timerIcon localModel = group [circle 10 |> outlined (solid 2) localModel.buttonColour
+                  ,rect 2 4 |> filled localModel.buttonColour|> move(0,11)
+                  ,rect 4 2 |> filled localModel.buttonColour |> move(0,13)
+                  ,group[rect 2 4 |> filled localModel.buttonColour |> move(0,11)
+                        ,rect 4 2 |> filled localModel.buttonColour |> move(0,13)] |> rotate (degrees -30)
+                  ,wedge 8 0.05 |> filled localModel.buttonColour |> scaleY 0.25 |> rotate (degrees -90) |> move (0,7)
+                  ,wedge 8 0.05 |> filled localModel.buttonColour |> scaleY 0.25 |> rotate (degrees 180) |> move (7.6,-0.5)
+                  ] |> scale 0.7
+                  
+pizza1Shape localModel = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(-10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(-10,-10)
+                ,circle 7 |>filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(10,-10)
+                ,circle 26 |> outlined (solid 1) localModel.toppingColour |> move(0,0)]
+              
+pizza2Shape localModel = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(-10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(10,10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(-10,-10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(10,-10)
+                ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(0,0)
+                ,circle 26 |> outlined (solid 1) localModel.toppingColour |> move(0,0)]
+                
+pizza3Shape localModel = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(0,15)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(0,0)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(0,-15)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(-15,0)
+              ,circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(15,0)
+              ,circle 26 |> outlined (solid 1) localModel.toppingColour |> move(0,0)]
+
+toppingTable localModel = group[
+               roundedRect 10 21 3 |> filled localModel.tableColour |> move(0,-1.5) |> scale 5
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,30)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,15)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,0)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-15)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(-9,-30)
+               ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-45)
+               ,cheeseTopping |> move(-11,32)
+                 |>notifyMouseDownAt ((GrabTopping Cheese) >> LocalMsg)
+               ,spinachTopping |> scale 0.8 |> move (9,15)
+                 |>notifyMouseDownAt ((GrabTopping Spinach) >> LocalMsg)
+               ,mushroomTopping |> scale 0.8 |> move(-9,0)
+                 |>notifyMouseDownAt ((GrabTopping Mushroom) >> LocalMsg)
+               ,pineappleTopping |> scale 0.7 |> move(9,-15)
+                 |>notifyMouseDownAt ((GrabTopping Pineapple) >> LocalMsg)
+               ,olivesTopping |> scale 0.8 |> move (-9,-30)
+                 |>notifyMouseDownAt ((GrabTopping Olives) >> LocalMsg)
+               ,pepperoniTopping |> scale 0.8 |> move(9,-45)
+                 |>notifyMouseDownAt ((GrabTopping Pepperoni) >> LocalMsg)
+                 
+               ] |> scale 0.7
+menuPage globalModel localModel =
+  let
+    player = case globalModel.gameState of
+                PlayerOneJoined -> PlayerTwo
+                _ -> case localModel.localState of
+                        PlayingGame _ p -> p
+                        _ -> PlayerOne
+  in
+    group
+    [
+      roundedRect 110 120 4
+        |> filled black
+        |> move(2,0)
+      ,
+      roundedRect 110 120 4
+        |> filled textColourBeige
+      ,
+      text "Menu"
+        |> filled black
+        |> scale 1.5
+        |> move (-20,40)
+      ,
+      line (-40,35) (40,35)
+        |> outlined (solid 1) black
+      ,
+      text "Best Time: 0 seconds"
+        |> filled black
+        |> scale 0.7
+        |> move (-35,20)
+      ,
+      text "Displayed Name:"
+        |> filled black
+        |> scale 0.7
+        |> move (-35,10)
+      ,
+      roundedRect 70 10 2
+        |> filled white
+      ,
+      roundedRect 60 12 4
+        |> filled bgRed
+        |> move (0, -20)
+      ,
+      [roundedRect 22 13 4
+        |> filled bgRed
+        |> move (30,-35)
+      ,text "Reset"
+        |> filled textColourBeige
+        |> scale 0.6
+        |> move (22,-37)] |> group |> notifyTap (LocalMsg <| Restart player)
+      ,
+      text "Have Feedback? Let us know"
+        |> underline
+        |> filled blue
+        |> scale 0.4
+        |> move (-30,-55)
+        |> addHyperlink "https://forms.office.com/r/EjHZ4CmQ8v"
+      ,
+      text "Leaderboard"
+        |> filled textColourBeige
+        |> scale 0.7
+        |> move (-22,-23)
+      ,
+      [roundedRect 22 13 4
+        |> filled bgRed
+        |> move (-30,-35)
+      ,text "Exit"
+        |> filled textColourBeige
+        |> scale 0.7
+        |> move (-37,-38)] |> group |> notifyTap (LocalMsg <| Exit)
+    ]
+
+quitBox globalModel localModel = 
+  let
+    player = case globalModel.gameState of
+                PlayerOneJoined -> PlayerTwo
+                _ -> case localModel.localState of
+                        PlayingGame _ p -> p
+                        _ -> PlayerOne
+  in
+    group [roundedRect 72 72 4
+                       |> filled black
+                    ,roundedRect 70 70 4
+                       |> filled textColourBeige
+                    , text "Warning!"
+                        |> centered
+                        |> bold
+                        |> filled black 
+                        |> move (0,20)
+                    , text "Resetting will cause "
+                        |> centered
+                        |> bold
+                        |> filled black
+                        |> scale 0.5
+                        |> move (0,10)
+                    , text "you to forfeit the game."
+                        |> centered
+                        |> bold
+                        |> filled black
+                        |> scale 0.5
+                        |> move (0,3)
+                    , text "Are you sure you want to quit?"
+                        |> centered
+                        |> bold
+                        |> filled black
+                        |> scale 0.4
+                        |> move (0,-7)
+                    , [roundedRect 24 12 4
+                        |> filled bgRed
+                      ,text "Quit"
+                        |> centered
+                        |> fixedwidth
+                        |> filled textColourBeige
+                        |> scale 0.6
+                        |> move (0,-2)
+                      ] |> group
+                        |> move(15,-20)
+                        |> notifyTap (LocalMsg <| (QuitGame 1 player))
+                    , [roundedRect 26 12 4
+                        |> filled buttonGreen
+                      ,text "Cancel"
+                        |> centered
+                        |> fixedwidth
+                        |> filled textColourBeige
+                        |> scale 0.6
+                        |> move (0,-2)
+                      ] |> group
+                        |> move(-15,-20)
+                        |> notifyTap (LocalMsg <| (QuitGame 0 player))
+                    ]
+                
+settingsPage =
+  group
+  [roundedRect 110 120 4
+      |> filled black
+      |> move(-2,0)
+    ,roundedRect 110 120 4
+      |> filled textColourBeige
+    ,text "Settings"
+      |> centered
+      |> filled black
+      |> scale 1.5
+      |> move (0,40)
+    ,line (-40,35) (40,35)
+      |> outlined (solid 1) black
+    ,text "Set Colour Palette:"
+      |> centered
+      |> filled black
+      |> scale 0.7
+      |> move (0,25)
+    ,text "Background"
+      |> centered
+      |> filled black
+      |> scale 0.3
+      |> move(-40,13)
+      |> notifyTap (LocalMsg <| Change "bgColour" (rgb 0 191 99))
+    , circle 5
+      |> filled bgRed
+      |> addOutline (solid 1) black
+      |> move (-20,14)
+      |> notifyTap (LocalMsg <| Change "bgColour" bgRed)
+    ,circle 5
+      |> filled (rgb 255 187 229)
+      |> addOutline (solid 1) black
+      |> move (-5,14)
+      |> notifyTap (LocalMsg <| Change "bgColour" (rgb 255 187 229))
+    ,circle 5
+      |> filled (rgb 156 211 225)
+      |> addOutline (solid 1) black
+      |> move (10,14)
+      |> notifyTap (LocalMsg <| Change "bgColour" (rgb 156 211 225))
+    ,circle 5
+      |> filled (rgb 173 121 91)
+      |> addOutline (solid 1) black
+      |> move (25,14)
+      |> notifyTap (LocalMsg <| Change "bgColour" (rgb 173 121 91))
+    ,circle 5
+      |> filled (rgb 0 191 99)
+      |> addOutline (solid 1) black
+      |> move (40,14)
+      |> notifyTap (LocalMsg <| Change "bgColour" (rgb 0 191 99))
+    ,text "Table"
+      |> centered
+      |> filled black
+      |> scale 0.3
+      |> move(-40,-1)
+    , circle 5
+      |> filled bgRed
+      |> addOutline (solid 1) black
+      |> move (-20,0)
+      |> notifyTap (LocalMsg <| Change "tableColour" bgRed)
+    ,circle 5
+      |> filled (rgb 255 187 229)
+      |> addOutline (solid 1) black
+      |> move (-5,0)
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 255 187 229))
+    ,circle 5
+      |> filled (rgb 156 211 225)
+      |> addOutline (solid 1) black
+      |> move (10,0)
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 156 211 225))
+    ,circle 5
+      |> filled (rgb 173 121 91)
+      |> addOutline (solid 1) black
+      |> move (25,0)
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 173 121 91))
+    ,circle 5
+      |> filled (rgb 0 191 99)
+      |> addOutline (solid 1) black
+      |> move (40,0)
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 0 191 99))
+    ,text "Topping Place"
+      |> centered
+      |> filled black
+      |> scale 0.3
+      |> move(-40,-15)
+    , circle 5
+      |> filled bgRed
+      |> addOutline (solid 1) black
+      |> move (-20,-14)
+      |> notifyTap (LocalMsg <| Change "toppingColour" bgRed)
+    ,circle 5
+      |> filled (rgb 255 187 229)
+      |> addOutline (solid 1) black
+      |> move (-5,-14)
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 255 187 229))
+    ,circle 5
+      |> filled (rgb 156 211 225)
+      |> addOutline (solid 1) black
+      |> move (10,-14)
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 156 211 225))
+    ,circle 5
+      |> filled (rgb 173 121 91)
+      |> addOutline (solid 1) black
+      |> move (25,-14)
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 173 121 91))
+    ,circle 5
+      |> filled (rgb 0 191 99)
+      |> addOutline (solid 1) black
+      |> move (40,-14)
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 0 191 99))
+    ,text "Buttons"
+      |> centered
+      |> filled black
+      |> scale 0.3
+      |> move (-40,-29)
+    , circle 5
+      |> filled bgRed
+      |> addOutline (solid 1) black
+      |> move (-20,-28)
+      |> notifyTap (LocalMsg <| Change "buttonColour" bgRed)
+    ,circle 5
+      |> filled (rgb 255 187 229)
+      |> addOutline (solid 1) black
+      |> move (-5,-28)
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 255 187 229))
+    ,circle 5
+      |> filled (rgb 156 211 225)
+      |> addOutline (solid 1) black
+      |> move (10,-28)
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 156 211 225))
+    ,circle 5
+      |> filled (rgb 173 121 91)
+      |> addOutline (solid 1) black
+      |> move (25,-28)
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 173 121 91))
+    ,circle 5
+      |> filled (rgb 0 191 99)
+      |> addOutline (solid 1) black
+      |> move (40,-28)
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 0 191 99))
+    ,text "Crust"
+      |> centered
+      |> filled black
+      |> scale 0.3
+      |> move (-40,-43)
+    , circle 5
+      |> filled bgRed
+      |> addOutline (solid 1) black
+      |> move (-20,-42)
+      |> notifyTap (LocalMsg <| Change "crustColour" bgRed)
+    ,circle 5
+      |> filled (rgb 255 187 229)
+      |> addOutline (solid 1) black
+      |> move (-5,-42)
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 255 187 229))
+    ,circle 5
+      |> filled (rgb 156 211 225)
+      |> addOutline (solid 1) black
+      |> move (10,-42)
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 156 211 225))
+    ,circle 5
+      |> filled (rgb 173 121 91)
+      |> addOutline (solid 1) black
+      |> move (25,-42)
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 173 121 91))
+    ,circle 5
+      |> filled (rgb 0 191 99)
+      |> addOutline (solid 1) black
+      |> move (40,-42)
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 0 191 99))
+    ,text "Reset to Default"
+      |> centered
+      |> underline
+      |> filled black
+      |> scale 0.4
+      |> move(0,-55)
+      |> notifyTap (LocalMsg <| Change "default" bgRed)
+    , text "X"
+      |> centered
+      |> bold
+      |> filled black
+      |> move(42,45)
+      |> notifyTap (LocalMsg <| Exit)
+  ]
+  
+leaderboardPage =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed  
+    ,
+    text "Leaderboard"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-40,45)
+    ,
+    text "X"
+      |> filled white
+      |> scale 1
+      |> move (85,54)
+    ,
+    text "Name 1"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,25)
+    ,
+    text "Name 2"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,10)
+    ,
+    text "Name 3"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (-70,-5)
+    ,
+    text "Score"
+      |> filled textColourBeige
+      |> scale 1
+      |> move (30,25)
+  ]
+
+losingScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed 
+    ,
+    text "Time"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,20)
+    ,
+    text "Over!"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,5)
+    ,
+    [roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (0,-25)
+    ,text "Press to go to Next Round..."
+      |> centered
+      |> bold
+      |> filled bgRed
+      |> scale 0.5
+      |> move (0,-27)] |> group |> notifyTap (LocalMsg <| Go2NextRound) |> notifyTap (GlobalMsg <| LevelUp) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping)
+  ]
+  
+finalScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (0,-25)  
+    ,
+    text "Final"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-20,20)
+    ,
+    text "Round"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-26,5)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-34,-29)  
+  ]
+  
+winnerScreen =
+  group
+  [
+    rect 1080 1920 
+      |> filled bgRed
+    ,
+    roundedRect 80 17 4
+      |> filled textColourBeige
+      |> move (-3,-25)  
+    ,
+    text "Completed"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-42,40)
+    ,
+    text "In"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-15,20)
+    ,
+    text "0 Seconds"
+      |> filled textColourBeige
+      |> scale 1.5
+      |> move (-43,0)
+    ,
+    text "Next Round..."
+      |> filled bgRed
+      |> scale 1
+      |> move (-37,-28)
+  ]
+
+-- MODIFYING PIZZA ORDER:
+addCheese : Pizza -> LocalModel -> GlobalModel -> Shape (TEASync.Msg localMsg GlobalMsg globalModel)
+addCheese pizza localModel globalModel =
+      let 
+          freshPizza1 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                         ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza1Shape localModel
+          cheesePizza1 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza1Shape localModel
+
+          freshPizza2 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                         ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza2Shape localModel
+          cheesePizza2 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza2Shape localModel
+
+          freshPizza3 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled sauceRedDefault |> move(0,0)] ++ pizza3Shape localModel
+          cheesePizza3 = [circle 30 |> filled localModel.crustColour |> move(0,0)
+                          ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza3Shape localModel
+      in
+        case globalModel.level of
+            1 -> if pizza.cheese then cheesePizza1 |> group else freshPizza1 |> group
+            2 -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+            3 -> if pizza.cheese then cheesePizza3 |> group else freshPizza3 |> group
+            _ -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+
+oneToFive : Random.Generator Int
+oneToFive = Random.int 1 5
+
+getNewTopping : Cmd GlobalMsg
+getNewTopping =
+  Random.generate NewTopping oneToFive
+  
+generateToppings : Pizza -> GlobalModel -> Pizza
+generateToppings pizza globalModel = 
+    let
+      topping1 = case globalModel.rando of 
+                    x :: _ -> x
+                    [] -> 1
+      topping2 = case globalModel.rando of 
+                    x :: y :: _ -> y
+                    [] -> 1
+                    _ -> 1
+      topping3 = case globalModel.rando of 
+                    x :: y :: z :: _ -> z
+                    [] -> 1
+                    _ -> 1
+      topping4 = case globalModel.rando of 
+                    x :: y :: z :: a :: _ -> a
+                    [] -> 1
+                    _ -> 1
+      topping5 = case globalModel.rando of 
+                    _ :: x :: [] -> x
+                    [] -> 1
+                    _ -> 1
+      
+      shapeTopping1 = case (Dict.get topping1 toppings) of
+                                 Just a -> a
+                                 Nothing -> NoTopping
+                                 
+      shapeTopping2 = case (Dict.get topping2 toppings) of
+                                 Just a -> a 
+                                 Nothing -> NoTopping
+                                 
+      shapeTopping3 = case (Dict.get topping3 toppings) of
+                                 Just a -> a 
+                                 Nothing -> NoTopping
+                                 
+      shapeTopping4 = case (Dict.get topping4 toppings) of
+                                 Just a -> a 
+                                 Nothing -> NoTopping
+                                 
+      shapeTopping5 = case (Dict.get topping5 toppings) of
+                                 Just a -> a 
+                                 Nothing -> NoTopping
+      topping = case globalModel.level of 
+                   1 -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ]}
+                               
+                   2 -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ,(shapeTopping5,(0,0))
+                                            ]}
+                   3 -> {pizza | topping = [(shapeTopping1,(0,15))
+                                            ,(shapeTopping2,(0,-15))
+                                            ,(shapeTopping3,(-15,0))
+                                            ,(shapeTopping4,(15,0))
+                                            ,(shapeTopping5,(0,0))
+                                            ]}
+                   _ -> {pizza | topping = [(shapeTopping1,(-10,10))
+                                            ,(shapeTopping2,(10,10))
+                                            ,(shapeTopping3,(-10,-10))
+                                            ,(shapeTopping4,(10,-10))
+                                            ]}
+    in
+      topping
+
+getToppingShapes : List (PossibleToppings, (Float,Float)) -> List (Shape (TEASync.Msg localMsg GlobalMsg globalModel))
+getToppingShapes ls =
+          case ls of
+            (a,xy) :: xs -> [case a of
+                                Cheese -> group []
+                                Spinach -> spinachTopping |> scale 0.5 |> move xy
+                                Mushroom -> mushroomTopping |> scale 0.5 |> move xy
+                                Pineapple -> pineappleTopping |> scale 0.5 |> move xy
+                                Olives -> olivesTopping |> scale 0.5 |> move xy
+                                Pepperoni -> pepperoniTopping |> scale 0.5 |> move xy
+                                NoTopping -> group []
+                            ] ++ (getToppingShapes xs)
+            [] -> []
+            
+generatePizzaOrder : Pizza -> LocalModel -> GlobalModel -> Shape (TEASync.Msg localMsg GlobalMsg globalModel)
+generatePizzaOrder pizza localModel globalModel =
+        let 
+          {topping, cheese} = pizza
+        in 
+          [(addCheese pizza localModel globalModel)
+          ,(getToppingShapes topping) |> group
+          ] |> group
+          
+order localModel globalModel = [receipt |> move(-10,0)
+        ,text "ORDER" |> size 18 |> filled black |> move(-23,40)
+        , generatePizzaOrder (generateToppings orderPizza globalModel) localModel globalModel |> move(7,5)
+        , textWrap (textOrder globalModel.rando globalModel) |> move(7,-33)
+        ] |> group |> move(-8,0)
+        
+textOrder: List Int -> GlobalModel -> String
+textOrder ls globalModel =
+      let 
+        list = case globalModel.level of
+                  1 -> List.take 4 ls
+                  2 -> ls
+                  3 -> ls
+                  _ -> List.take 4 ls
+      in
+        case list of
+          [] -> ""
+          x :: [] -> case x of
+                       1 -> "and spinach."
+                       2 -> "and mushroom."
+                       3 -> "and olives."
+                       4 -> "and pepperoni."
+                       5 -> "and pineapple."
+                       _ -> ""      
+          _ :: x :: y :: [] -> case x of
+                       1 -> "\nspinach " ++ (textOrder [y] globalModel)
+                       2 -> "\nmushroom " ++ (textOrder [y] globalModel)
+                       3 -> "\nolives " ++ (textOrder [y] globalModel)
+                       4 -> "\npepperoni " ++ (textOrder [y] globalModel)
+                       5 -> "\npineapple " ++ (textOrder [y] globalModel)
+                       _ -> "\n " ++ (textOrder [y] globalModel)
+          x :: xs -> case x of 
+                      1 -> "spinach, " ++ (textOrder xs globalModel)
+                      2 -> "mushroom, " ++ (textOrder xs globalModel)
+                      3 -> "olives, " ++ (textOrder xs globalModel)
+                      4 -> "pepperoni, " ++ (textOrder xs globalModel)
+                      5 -> "pineapple, " ++ (textOrder xs globalModel)
+                      _ -> " "
+                    
+textWrap : String -> Shape (TEASync.Msg localMsg GlobalMsg globalModel)
+textWrap str = 
+    let 
+      lines =  String.lines str
+      line1 = case (List.head lines) of 
+                Just a -> a
+                Nothing -> " "
+      line2 = case (List.head (List.reverse lines)) of 
+                Just a -> a
+                Nothing -> " "
+                
+    in
+       if String.contains "\n" str then
+         [text "Order of cheese pizza with " |> centered |> size 4.5 |> bold |> filled black |> move(0,0)
+         ,text (line1) |> centered |> size 4.5 |> bold |> filled black |> move(0,-5)
+         ,text line2 |> centered |> size 4.5 |> bold |> filled black |> move(0,-10)
+         ] |> group
+       else
+         text ("Order of " ++ (line1)) |> centered |> size 4.5 |> bold |> filled black |> move(0,0)
+    
+localUpdate : LocalMsg -> LocalModel -> GlobalModel -> (LocalModel, Cmd LocalMsg, Cmd GlobalMsg)
+localUpdate msg localModel globalModel = 
+  case msg of
+    Types.Tick t _ -> ({ localModel | time = t }, Cmd.none, Cmd.none)
+    Go2Singleplayer p -> ({localModel | stime = localModel.time, localState = PlayingGame SinglePlayer p}, Cmd.none, Cmd.none)
+    Go2NextRound -> ({localModel | stime = localModel.time, overlay = None}, Cmd.none, Cmd.none)
+    NewPos _ -> (localModel, Cmd.none, Cmd.none)
+    MovePos newpt -> ({localModel | mouseState = case localModel.mouseState of
+                                                   Waiting -> Waiting
+                                                   Draggingshape topping pt -> Draggingshape topping newpt
+                                                   DraggingTShape tshape pt -> DraggingTShape tshape newpt}, Cmd.none, Cmd.none)
+                                                   
+    LetGo -> ({localModel | mouseState = Waiting}, Cmd.none, Cmd.none)
+    Change val col -> case val of
+                        "bgColour" -> ({localModel | bgColour = col}, Cmd.none, Cmd.none)
+                        "tableColour" -> ({localModel | tableColour = col}, Cmd.none, Cmd.none)
+                        "toppingColour" -> ({localModel | toppingColour = col}, Cmd.none, Cmd.none)
+                        "buttonColour" -> ({localModel | buttonColour = col}, Cmd.none, Cmd.none)
+                        "crustColour" -> ({localModel | crustColour = col}, Cmd.none, Cmd.none)
+                        "default" -> ({localModel | bgColour = (Tuple.first initLocal).bgColour, tableColour = (Tuple.first initLocal).tableColour, toppingColour = (Tuple.first initLocal).toppingColour,buttonColour = (Tuple.first initLocal).buttonColour, crustColour = (Tuple.first initLocal).crustColour}, Cmd.none, Cmd.none)
+                        _ -> (localModel, Cmd.none, Cmd.none)
+    Go2Settings -> ({localModel | overlay = Settings, otime = localModel.time},Cmd.none,Cmd.none)
+    Restart player -> ((if localModel.localState == PlayingGame MultiPlayer player then {localModel | overlay = Quit} else {localModel | localState = AtMainMenu, overlay = None}), Cmd.none, Cmd.none)
+    Exit -> ({localModel | overlay = None}, Cmd.none, Cmd.none)
+    Go2MenuScreen -> ({localModel | overlay = MenuScreen, otime = localModel.time}, Cmd.none, Cmd.none)
+    LocalPlayerJoin player -> 
+      ( { localModel | localState = InLobby player }
+      , Cmd.none
+      , newMsg <| PlayerJoin player
+      )
+    LocalStart st ->
+      let 
+        player = 
+          case localModel.localState of
+            InLobby p -> p
+            PlayingGame _ p -> p
+            _ -> PlayerOne
+      in
+        ({ localModel | stime = localModel.time, localState = PlayingGame st player }, Cmd.none, Cmd.none)
+--    QuitGame n p -> (if n == 1 then ({localModel | localState = InLobby p, overlay = None}, Cmd.none, Cmd.none) else ({localModel | overlay = None}, Cmd.none, newMsg <| Quitted))
+
+    GrabTopping topping pt -> ({localModel | mouseState = Draggingshape topping pt}, Cmd.none, Cmd.none)
+    GrabTShape tshape newpt -> ({localModel| mouseState = DraggingTShape tshape newpt},Cmd.none, Cmd.none)
+    _ -> (localModel, Cmd.none, Cmd.none)
+
+updateTshapePos tshape newpt =
+    case tshape of
+      Shape topping pt -> Shape topping newpt
+      
+globalUpdate : GlobalMsg -> GlobalModel -> (GlobalModel, Cmd GlobalMsg, Cmd LocalMsg)
+globalUpdate msg globalModel =
+    case msg of
+        TimeUp -> (globalModel, Cmd.none, Cmd.none)
+        Done -> (globalModel, Cmd.none, Cmd.none)
+        NewTopping a -> ({globalModel | rando = globalModel.rando ++ [a]}, Cmd.none, Cmd.none)
+        GetNewTopping -> (globalModel,getNewTopping, Cmd.none)
+        LevelUp -> ({globalModel | level = if (Basics.modBy globalModel.level 2) == 0 then 3 else 2, alottedTime = globalModel.alottedTime - 15, toppings = []}, Cmd.none, Cmd.none)
+        PlayerJoin player ->
+          ({ globalModel | 
+                gameState = 
+                  case player of
+                    PlayerOne -> PlayerOneJoined
+                    PlayerTwo -> PlayerTwoJoined
+                    _ -> PlayerOneJoined
+           }, Cmd.none, Cmd.none )
+        StartGame st ->
+          ( { globalModel | 
+                gameState = Playing
+           }, Cmd.none
+           , newMsg (LocalStart st)
+           )
+--        Quitted -> ( { globalModel | 
+--                          gameState = NoPlayersJoined
+--                          }, Cmd.none
+--                          , Cmd.none
+--                          )
+
+        UpdateShape topping pt -> ({globalModel| toppings = (Shape topping pt)::globalModel.toppings}, Cmd.none, Cmd.none)
+
+        UpdateTShape tshape new_pt -> ({globalModel| toppings = (updateTShape globalModel.toppings tshape new_pt)}, Cmd.none, Cmd.none)
+   --     _ -> (globalModel, Cmd.none, Cmd.none)
+initLocal : (LocalModel, Cmd LocalMsg)
+initLocal = ({time = 0
+             , stime = 0
+             , otime = 0
+             , localState = AtMainMenu
+             , overlay = None
+             , mouseState = Waiting
+             , bgColour = bgBeigeDefault
+             , tableColour = tableBrown
+             , toppingColour = toppingPlaceBlueDefault
+             , buttonColour = peripheralButtonBrown
+             , crustColour = crustColourDefault}, Cmd.none)
+               
+
+initGlobal : (GlobalModel, Cmd GlobalMsg)
+initGlobal = ({rando = []
+              , level = 1
+              ,alottedTime = 135
+              ,gameState = NoPlayersJoined
+              , toppings = []}, Cmd.none)
+
+
+-- Your local subscriptions go here
+localSubscriptions : LocalModel -> GlobalModel -> Sub LocalMsg
+localSubscriptions localModel globalModel = Sub.none
+
+-- Your global subscriptions go here
+globalSubscriptions : LocalModel -> GlobalModel -> Sub GlobalMsg
+globalSubscriptions localModel globalModel = Sub.none
+
+appConfig =
+    { initLocal = \_ -> initLocal
+    , initGlobal = \_ -> initGlobal
+    , localUpdate = localUpdate
+    , globalUpdate = globalUpdate
+    , view = view
+    , localSubscriptions = localSubscriptions
+    , globalSubscriptions = globalSubscriptions
+    , codecGlobalModel = JSON Codec.Encoders.encodeGlobalModel Codec.Decoders.decodeGlobalModel
+    , codecGlobalMsg = JSON Codec.Encoders.encodeGlobalMsg Codec.Decoders.decodeGlobalMsg
+    }
+    
+-- Your main function goes here
+main : TEASyncGSVGAppWithTick () LocalModel GlobalModel LocalMsg GlobalMsg
+main = 
+  teaSyncAppWithTick Types.Tick 
+    appConfig
+
+-- You view function goes here
+view : LocalModel -> GlobalModel -> { title: String, body : Collage (TEASync.Msg LocalMsg GlobalMsg GlobalModel) }
+view localModel globalModel = 
+  {
+    title = "My App Title"
+  , body = collage 192 128 (myShapes localModel globalModel)
+  }
+
+-- Graphics is acting absolutely insane right now so the dependecies are just pasted below:
+bgRed = rgb 229 68 47
+bgBeigeDefault = rgb 255 250 235
+sauceRedDefault = rgb 255 49 49
+toppingPlaceBlueDefault = rgb 193 219 218
+crustColourDefault = rgb 255 189 89
+buttonGreen = rgb 0 200 0
+textColourBeige = rgb 244 211 174
+receiptBeige = rgb 246 238 226
+peripheralButtonBrown = rgb 43 21 17
+tableBrown = rgb 173 121 91
+plateBeige = rgb 255 250 235
+pizzaCheese = rgb 255 222 89
+spinachLeafGreen = rgb 58 95 11
+stemGreen = rgb 97 138 61
+mushroomBeige = rgb 216 204 192
+blackOliveBlack = rgb 59 60 54
+pepperoniSpecs = (rgb 184 31 43)
+
+pizza1 = group[circle 30 |> filled crustColourDefault |> move(0,0)
+    ,circle 26 |> filled sauceRedDefault |> move(0,0)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(-10,10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(10,10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(-10,-10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(10,-10)
+    ,circle 26 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)]
+    
+pizza2 = group[circle 30 |> filled crustColourDefault |> move(0,0)
+    ,circle 26 |> filled sauceRedDefault |> move(0,0)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(-10,10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(10,10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(-10,-10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(10,-10)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)
+    ,circle 26 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)]
+    
+pizza3 = group[circle 30 |> filled crustColourDefault |> move(0,0)
+    ,circle 26 |> filled sauceRedDefault |> move(0,0)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,15)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,-15)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(-15,0)
+    ,circle 5 |> outlined (solid 1) toppingPlaceBlueDefault |> move(15,0)
+    ,circle 26 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)]
+
+hintButton = group[circle 10 |> filled toppingPlaceBlueDefault |> addOutline (solid 1) black |> move(0,0)
+            ,circle 4 |> outlined (solid 1) black |> move(-3,3)
+            ,rect 1 8 |> filled black |> rotate (degrees 45) |> move(3,-3)
+            ] |> scale 0.7
+            
+receipt = curve (-17.17,59.004) [Pull (-17.17,1.5609) (-17.17,-55.88),Pull (-14.82,-54.16) (-12.48,-52.44),Pull (-9.834,-54.00) (-7.180,-55.57),Pull (-4.839,-54.16) (-2.497,-52.76),Pull (0.1560,-54.16) (2.8097,-55.57),Pull (5.3073,-54.00) (7.8048,-52.44),Pull (10.146,-53.85) (12.487,-55.25),Pull (15.141,-53.85) (17.795,-52.44),Pull (20.136,-53.85) (22.478,-55.25),Pull (24.975,-53.85) (27.473,-52.44),Pull (29.970,-53.85) (32.468,-55.25),Pull (34.965,-53.85) (37.463,-52.44),Pull (39.960,-54.00) (42.458,-55.57),Pull (44.956,-54.32) (47.453,-53.07),Pull (49.795,-54.16) (52.136,-55.25),Pull (52.136,1.8731) (52.136,59.004),Pull (17.482,59.004) (-17.17,59.004)] |> filled receiptBeige |> addOutline (solid 2) black
+
+pizza1Completed = group[circle 30 |> filled crustColourDefault |> move(0,0)
+    ,circle 26 |> filled pizzaCheese |> move(0,0)
+    ,circle 7 |> filled (rgb 240 170 26) |> addOutline (solid 1) toppingPlaceBlueDefault |> move(-10,10)
+    ,circle 7 |> filled (rgb 240 170 26) |> addOutline (solid 1) toppingPlaceBlueDefault |> move(10,10)
+    ,circle 7 |> filled (rgb 240 170 26) |> addOutline (solid 1) toppingPlaceBlueDefault |> move(-10,-10)
+    ,circle 7 |>filled (rgb 240 170 26) |> addOutline (solid 1) toppingPlaceBlueDefault |> move(10,-10)
+    ,circle 26 |> outlined (solid 1) toppingPlaceBlueDefault |> move(0,0)
+    ,olivesTopping |> scale 0.4 |> move(-10,10)
+    ,spinachTopping |> scale 0.4 |> move(10,10)
+    ,pepperoniTopping |> scale 0.4 |> move(10,-10)
+    ,mushroomTopping |> scale 0.4 |> move(-10,-10)]
+
+leaf = group[
+            curve (-31.84,34.653) [Pull (-33.71,32.624) (-35.59,30.595),Pull (-37.15,27.941) (-38.71,25.287),Pull (-39.96,22.009) (-41.20,18.731),Pull (-41.83,13.736) (-42.45,8.7414),Pull (-42.14,5.7756) (-41.83,2.8097),Pull (-41.05,0.1560) (-40.27,-2.497),Pull (-38.4,-6.087) (-36.52,-9.678),Pull (-33.56,-13.11) (-30.59,-16.54),Pull (-27.78,-18.73) (-24.97,-20.91),Pull (-20.44,-23.10) (-15.92,-25.28),Pull (-13.26,-27.16) (-10.61,-29.03),Pull (-5.775,-31.21) (-0.936,-33.40),Pull (0.7804,-34.02) (2.4975,-34.65),Pull (2.4975,-33.09) (2.4975,-31.53),Pull (-1.092,-30.75) (-4.682,-29.97),Pull (-6.556,-29.03) (-8.429,-28.09),Pull (-10.61,-26.84) (-12.8,-25.6),Pull (-14.04,-24.35) (-15.29,-23.10),Pull (-16.54,-21.38) (-17.79,-19.66),Pull (-17.95,-18.26) (-18.10,-16.85),Pull (-17.63,-15.92) (-17.17,-14.98),Pull (-15.76,-13.42) (-14.36,-11.86),Pull (-12.64,-9.834) (-10.92,-7.804),Pull (-9.678,-5.619) (-8.429,-3.434),Pull (-7.960,-0.780) (-7.492,1.8731),Pull (-7.336,4.8390) (-7.180,7.8048),Pull (-7.960,10.458) (-8.741,13.112),Pull (-9.990,15.765) (-11.23,18.419),Pull (-12.64,20.604) (-14.04,22.790),Pull (-16.07,25.131) (-18.10,27.473),Pull (-20.91,29.658) (-23.72,31.843),Pull (-26.22,32.936) (-28.72,34.029),Pull (-30.12,34.497) (-31.53,34.965)] |> filled spinachLeafGreen |> addOutline (solid 0.5) black
+            ,curve (-34.02,26.848) [Pull (-31.37,28.097) (-28.72,29.346),Pull (-31.21,27.473) (-33.71,25.6),Pull (-34.80,26.224) (-35.90,26.848),Pull (-35.27,25.756) (-34.65,24.663),Pull (-34.18,25.131) (-33.71,25.6),Pull (-33.71,26.380) (-33.71,27.160)] |> filled stemGreen
+            ,curve (-39.33,19.043) [Pull (-37.30,17.795) (-35.27,16.546),Pull (-35.27,15.297) (-35.27,14.048),Pull (-29.50,19.668) (-23.72,25.287),Pull (-29.50,18.575) (-35.27,11.863),Pull (-35.43,12.956) (-35.59,14.048),Pull (-37.46,16.546) (-39.33,19.043)] |> filled stemGreen
+            ,curve (-41.20,4.9951) [Pull (-37.15,2.4975) (-33.09,0),Pull (-32.62,-1.717) (-32.15,-3.434),Pull (-25.75,5.6195) (-19.35,14.673),Pull (-25.28,4.3707) (-31.21,-5.931),Pull (-31.84,-4.682) (-32.46,-3.434),Pull (-36.83,0.7804) (-41.20,4.9951)] |> filled stemGreen
+            ,curve (-34.02,-11.55) [Pull (-30.43,-12.64) (-26.84,-13.73),Pull (-25.44,-15.29) (-24.03,-16.85),Pull (-18.88,-5.151) (-13.73,6.5560),Pull (-18.26,-5.931) (-22.79,-18.41),Pull (-23.57,-17.63) (-24.35,-16.85),Pull (-29.03,-14.20) (-33.71,-11.55)] |> filled stemGreen
+            ]
+spinachTopping = group[
+                  leaf |> scale 0.5
+                 ,leaf |> scale 0.5 |> rotate (degrees 180) |> move(-5,0)
+                 ] |> scale 0.5 |> move(2,0)
+
+cheeses = group[
+               curve (6.3355,-16.32) [Pull (14.281,-10.09) (22.228,-3.865),Pull (22.872,-3.865) (23.516,-3.865),Pull (25.020,-3.973) (26.523,-4.080),Pull (27.919,-4.402) (29.315,-4.724),Pull (30.496,-4.939) (31.677,-5.154),Pull (33.288,-5.583) (34.899,-6.013),Pull (35.973,-6.442) (37.046,-6.872),Pull (38.228,-7.516) (39.409,-8.161),Pull (40.590,-8.912) (41.771,-9.664),Pull (24.161,-12.99) (6.5503,-16.32)] |> filled (rgb 251 221 75)
+              ,curve (6.3355,-16.32) [Pull (6.3355,-17.82) (6.3355,-19.32),Pull (6.6577,-19.54) (6.9798,-19.75),Pull (7.4093,-20.08) (7.8389,-20.40),Pull (8.0536,-20.83) (8.2684,-21.26),Pull (8.2684,-21.58) (8.2684,-21.90),Pull (8.1610,-22.55) (8.0536,-23.19),Pull (7.7315,-23.62) (7.4093,-24.05),Pull (6.8724,-24.26) (6.3355,-24.48),Pull (6.3355,-28.13) (6.3355,-31.78),Pull (13.422,-30.49) (20.510,-29.20),Pull (20.617,-28.67) (20.724,-28.13),Pull (20.939,-27.70) (21.154,-27.27),Pull (21.476,-27.06) (21.798,-26.84),Pull (22.228,-26.63) (22.657,-26.41),Pull (23.302,-26.41) (23.946,-26.41),Pull (24.053,-26.52) (24.161,-26.63),Pull (24.375,-26.84) (24.590,-27.06),Pull (24.805,-27.16) (25.020,-27.27),Pull (25.234,-27.70) (25.449,-28.13),Pull (33.610,-26.63) (41.771,-25.12),Pull (41.771,-17.39) (41.771,-9.664),Pull (24.053,-12.99) (6.3355,-16.32)] |> filled (rgb 245 185 35)
+              ,circle 3 |> filled (rgb 190 125 25) |> move(20,-20)
+              ,circle 3 |> filled (rgb 190 125 25) |> move(30,-22)
+              ,circle 2 |> filled (rgb 190 125 25) |> move(18,-9) |> scaleX 1.5
+              ,circle 1 |> filled (rgb 220 150 26) |> move(12,-12) |> scaleX 1.5
+              ,circle 1.5 |> filled (rgb 220 150 26) |> move(12,-25)
+              ,circle 2.5 |> filled (rgb 220 150 26) |> move(37,-15)
+              ]
+cheeseTopping = cheeses |> scale 0.4 |> move(-7,5)
+
+mushroom = curve (-41.52,21.541) [Pull (-40.27,21.229) (-39.02,20.917),Pull (-38.86,20.136) (-38.71,19.356),Pull (-38.55,18.263) (-38.4,17.170),Pull (-39.33,15.921) (-40.27,14.673),Pull (-42.14,14.673) (-44.01,14.673),Pull (-45.11,15.297) (-46.20,15.921),Pull (-47.60,17.639) (-49.01,19.356),Pull (-49.32,22.321) (-49.63,25.287),Pull (-48.70,28.253) (-47.76,31.219),Pull (-45.89,33.248) (-44.01,35.278),Pull (-41.05,36.995) (-38.08,38.712),Pull (-35.59,39.492) (-33.09,40.273),Pull (-29.97,40.585) (-26.84,40.897),Pull (-24.35,40.429) (-21.85,39.960),Pull (-18.57,38.712) (-15.29,37.463),Pull (-13.89,36.214) (-12.48,34.965),Pull (-11.23,33.404) (-9.990,31.843),Pull (-9.365,30.751) (-8.741,29.658),Pull (-8.273,27.785) (-7.804,25.912),Pull (-7.804,24.039) (-7.804,22.165),Pull (-8.117,20.604) (-8.429,19.043),Pull (-9.365,17.795) (-10.30,16.546),Pull (-11.55,15.765) (-12.8,14.985),Pull (-14.36,14.829) (-15.92,14.673),Pull (-17.17,15.297) (-18.41,15.921),Pull (-18.88,17.014) (-19.35,18.107),Pull (-19.2,19.043) (-19.04,19.980),Pull (-18.26,20.760) (-17.48,21.541),Pull (-17.32,22.009) (-17.17,22.478),Pull (-17.63,22.634) (-18.10,22.790),Pull (-19.04,22.634) (-19.98,22.478),Pull (-20.44,22.321) (-20.91,22.165),Pull (-21.38,21.541) (-21.85,20.917),Pull (-22.16,20.292) (-22.47,19.668),Pull (-22.63,19.043) (-22.79,18.419),Pull (-22.79,17.795) (-22.79,17.170),Pull (-22.79,16.234) (-22.79,15.297),Pull (-22.63,14.204) (-22.47,13.112),Pull (-22.32,12.175) (-22.16,11.239),Pull (-22.00,10.458) (-21.85,9.6780),Pull (-21.54,8.5853) (-21.22,7.4926),Pull (-20.91,6.7121) (-20.60,5.9317),Pull (-20.60,5.1512) (-20.60,4.3707),Pull (-20.44,3.5902) (-20.29,2.8097),Pull (-20.29,2.1853) (-20.29,1.5609),Pull (-20.60,1.0926) (-20.91,0.6243),Pull (-21.38,0.3121) (-21.85,0),Pull (-22.32,0) (-22.79,0),Pull (-26.22,-0.312) (-29.65,-0.624),Pull (-32.46,-0.156) (-35.27,0.3121),Pull (-36.05,0.4682) (-36.83,0.6243),Pull (-36.99,1.0926) (-37.15,1.5609),Pull (-37.15,2.3414) (-37.15,3.1219),Pull (-36.83,3.9024) (-36.52,4.6829),Pull (-36.05,6.7121) (-35.59,8.7414),Pull (-35.12,10.926) (-34.65,13.112),Pull (-34.65,15.141) (-34.65,17.170),Pull (-34.96,18.731) (-35.27,20.292),Pull (-35.90,21.541) (-36.52,22.790),Pull (-37.30,23.102) (-38.08,23.414),Pull (-39.64,23.258) (-41.20,23.102),Pull (-41.52,22.478) (-41.83,21.853),Pull (-41.83,21.853) (-41.83,21.853)] |> filled mushroomBeige |> addOutline (solid 0.5) black 
+
+mushroomTopping = group [
+                  mushroom |> scale 0.5
+                 ,mushroom |> scale 0.5 |> rotate (degrees -30) |> move(10,-10)
+                 ,mushroom |> scale 0.5 |> rotate (degrees 25) |> move(0,-10)
+                  ] |> scale 0.5 |> move(5,0)
+
+olives = group [
+           curve (-61.19,43.707) [Pull (-62.43,43.863) (-63.68,44.019),Pull (-64.15,43.551) (-64.62,43.082),Pull (-65.09,42.458) (-65.56,41.834),Pull (-64.78,41.521) (-64,41.209),Pull (-63.37,40.585) (-62.75,39.960),Pull (-61.97,40.273) (-61.19,40.585),Pull (-61.03,41.209) (-60.87,41.834),Pull (-60.72,42.770) (-60.56,43.707),Pull (-60.56,43.707) (-60.56,43.707),Pull (-59.62,44.643) (-58.69,45.580),Pull (-60.09,46.517) (-61.50,47.453),Pull (-63.06,47.297) (-64.62,47.141),Pull (-65.71,46.360) (-66.80,45.580),Pull (-67.12,44.643) (-67.43,43.707),Pull (-67.59,42.770) (-67.74,41.834),Pull (-67.43,40.585) (-67.12,39.336),Pull (-65.56,38.712) (-64,38.087),Pull (-61.97,37.931) (-59.94,37.775),Pull (-58.84,39.492) (-57.75,41.209),Pull (-57.6,42.302) (-57.44,43.395),Pull (-57.91,44.643) (-58.38,45.892)] |> filled blackOliveBlack
+          ,curve (-28.72,44.331) [Pull (-28.25,43.863) (-27.78,43.395),Pull (-26.53,43.863) (-25.28,44.331),Pull (-24.66,43.863) (-24.03,43.395),Pull (-24.03,42.770) (-24.03,42.146),Pull (-24.66,41.990) (-25.28,41.834),Pull (-26.06,41.834) (-26.84,41.834),Pull (-27.00,42.302) (-27.16,42.770),Pull (-27.78,42.770) (-28.40,42.770),Pull (-28.72,42.770) (-29.03,42.770),Pull (-29.65,42.926) (-30.28,43.082),Pull (-29.65,41.209) (-29.03,39.336),Pull (-28.25,38.868) (-27.47,38.4),Pull (-25.75,38.556) (-24.03,38.712),Pull (-22.32,39.648) (-20.60,40.585),Pull (-20.60,41.521) (-20.60,42.458),Pull (-20.76,43.707) (-20.91,44.956),Pull (-22.00,46.048) (-23.10,47.141),Pull (-24.97,47.141) (-26.84,47.141),Pull (-27.78,46.204) (-28.72,45.268)] |> filled blackOliveBlack |> move(-30,0)
+          ,curve (-35.90,22.478) [Pull (-36.05,23.726) (-36.21,24.975),Pull (-37.15,25.912) (-38.08,26.848),Pull (-37.15,27.160) (-36.21,27.473),Pull (-35.74,27.160) (-35.27,26.848),Pull (-34.49,26.692) (-33.71,26.536),Pull (-34.18,25.912) (-34.65,25.287),Pull (-34.34,23.726) (-34.02,22.165),Pull (-32.62,23.726) (-31.21,25.287),Pull (-31.06,26.224) (-30.90,27.160),Pull (-31.37,28.253) (-31.84,29.346),Pull (-33.40,29.970) (-34.96,30.595),Pull (-36.21,30.282) (-37.46,29.970),Pull (-38.4,29.502) (-39.33,29.034),Pull (-39.96,27.785) (-40.58,26.536),Pull (-40.27,25.6) (-39.96,24.663),Pull (-39.80,24.195) (-39.64,23.726),Pull (-39.02,23.258) (-38.4,22.790),Pull (-36.99,22.478) (-35.59,22.165),Pull (-35.74,22.634) (-35.90,23.102)] |> filled blackOliveBlack |> move(-22,6)
+         ]
+olivesTopping = olives |> move(60,-40)
+
+pepperoni = group[
+              circle 5 |> filled red
+              ,circle 2 |> filled pepperoniSpecs |> move (-1,1)
+              ,circle 2 |> filled pepperoniSpecs |> move(2,-2)
+              ] |> addOutline (solid 1) black
+pepperoniTopping = group[
+                   pepperoni |> move(0,0)
+                   ,pepperoni |> move(5,2)
+                   ,pepperoni |> move(5,-2)
+                   ] |> scale 1.3 |> move(-3,0)
+
+pineapple = group[curve (40.268,-24.26) [Pull (40.912,-23.08) (41.557,-21.90),Pull (45.744,-34.36) (49.932,-46.81),Pull (53.798,-46.60) (57.664,-46.38),Pull (56.590,-48.10) (55.516,-49.82),Pull (52.295,-49.61) (49.073,-49.39),Pull (44.671,-36.83) (40.268,-24.26)] |> filled (rgb 231 176 51)
+                 ,curve (41.342,-22.12) [Pull (45.744,-34.57) (50.147,-47.03),Pull (54.013,-46.71) (57.879,-46.38),Pull (59.597,-34.57) (61.315,-22.76),Pull (60.993,-22.01) (60.671,-21.26),Pull (60.134,-20.93) (59.597,-20.61),Pull (58.523,-20.29) (57.449,-19.97),Pull (56.268,-19.75) (55.087,-19.54),Pull (53.798,-19.54) (52.510,-19.54),Pull (51.114,-19.54) (49.718,-19.54),Pull (48.107,-19.65) (46.496,-19.75),Pull (45.422,-19.97) (44.348,-20.18),Pull (43.489,-20.61) (42.630,-21.04),Pull (42.093,-21.58) (41.557,-22.12)] |> filled (rgb 237 219 50) |> move(-0.3,0)
+                 ,curve (45.208,-21.47) [Pull (45.744,-21.47) (46.281,-21.47),Pull (46.711,-22.12) (47.140,-22.76),Pull (47.248,-23.51) (47.355,-24.26),Pull (47.785,-25.98) (48.214,-27.70),Pull (49.718,-32.42) (51.221,-37.15),Pull (51.436,-38.44) (51.651,-39.73),Pull (51.758,-40.91) (51.865,-42.09),Pull (51.543,-42.20) (51.221,-42.30),Pull (49.718,-37.90) (48.214,-33.50),Pull (47.677,-31.78) (47.140,-30.06),Pull (46.711,-27.91) (46.281,-25.77),Pull (45.744,-23.62) (45.208,-21.47)] |> filled (rgb 233 176 58) |> move(0,-1)
+                 ,curve (49.932,-21.04) [Pull (50.577,-26.09) (51.221,-31.14),Pull (51.006,-26.09) (50.791,-21.04),Pull (50.362,-20.93) (49.932,-20.83)] |> filled (rgb 233 176 58) |> move(0,-1)
+                 ,curve (53.583,-22.55) [Pull (54.120,-22.76) (54.657,-22.97),Pull (54.979,-30.38) (55.302,-37.79),Pull (54.872,-38.65) (54.442,-39.51),Pull (54.228,-39.51) (54.013,-39.51),Pull (53.798,-30.92) (53.583,-22.33)] |> filled (rgb 233 176 58) |> move(0,-1)
+                 ,curve (57.879,-21.90) [Pull (57.449,-24.05) (57.020,-26.20),Pull (56.805,-27.16) (56.590,-28.13),Pull (56.483,-28.88) (56.375,-29.63),Pull (56.375,-30.49) (56.375,-31.35),Pull (56.268,-32.42) (56.161,-33.50),Pull (56.590,-33.61) (57.020,-33.71),Pull (57.879,-27.81) (58.738,-21.90),Pull (58.416,-21.90) (58.093,-21.90)] |> filled (rgb 233 176 58) |> move(0,-1)
+                 ]
+pineappleTopping = group[pineapple
+                        ,pineapple |> rotate (degrees 30) |> move(-30,-30)
+                        ,pineapple |> rotate (degrees -30) |> move(43,20)
+                        ] |> scale 0.4 |> move(-20,15)

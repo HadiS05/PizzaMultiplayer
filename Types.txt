@@ -1,0 +1,118 @@
+import GraphicSVG.EllieApp exposing(GetKeyState)
+import GraphicSVG exposing (Shape, Color)
+import Dict exposing (Dict)
+
+{-
+REQUIRED TYPES
+The following types must exist for TEASync to function:
+- LocalMsg
+- GlobalMsg
+- LocalModel
+- GlobalModel
+
+You are free to change these as you would like, but don't
+rename them.
+-}
+
+
+
+type State = StartingScreen
+            | PlayingScreen
+            | SingleScreen
+            | WinningScreenNext
+          
+type PossibleToppings = Cheese
+                       | Spinach
+                       | Mushroom
+                       | Pineapple
+                       | Olives
+                       | Pepperoni
+                       | NoTopping
+                       
+
+type MouseState = Waiting
+                  | Draggingshape PossibleToppings (Float,Float)
+                  | DraggingTShape TShapes (Float, Float)
+
+type OverlayState = MenuScreen
+                   | Settings
+                   | Quit
+                   | None
+                  
+
+type alias Pizza = {topping : List (PossibleToppings, (Float,Float)), cheese : Bool}
+
+type GameState 
+    = NoPlayersJoined
+    | PlayerOneJoined
+    | PlayerTwoJoined
+    | Playing
+--    | Player Left
+    
+type LocalState
+    = AtMainMenu
+    | InLobby Player
+    | PlayingGame LocalGameState Player
+    
+type LocalGameState = MultiPlayer
+                     | SinglePlayer
+
+type Player = PlayerOne | PlayerTwo | Left
+
+type LocalMsg 
+       =  Tick Float GetKeyState
+          | Go2Singleplayer Player
+          | Go2MenuScreen
+          | Go2Settings
+          | Go2NextRound
+          | LetGo
+          | NewPos (Float,Float)
+          | MovePos (Float,Float)
+          | Restart Player
+          | QuitGame Int Player
+          | Change String Color
+          | Exit
+          | LocalPlayerJoin Player
+          | LocalStart LocalGameState
+          | GrabTopping PossibleToppings (Float,Float)
+          | GrabTShape TShapes (Float,Float)
+
+
+type alias LocalModel = {time : Float
+                         , overlay : OverlayState
+                         , mouseState : MouseState
+                         , localState : LocalState
+                         , bgColour : Color
+                         , tableColour : Color
+                         , toppingColour : Color
+                         , buttonColour : Color
+                         , crustColour : Color
+                         , stime : Float
+                         , otime : Float}
+                         
+
+type GlobalMsg
+    = TimeUp
+    | Done
+    | NewTopping Int
+    | GetNewTopping
+    | LevelUp
+    | PlayerJoin Player
+    | StartGame LocalGameState
+    | UpdateShape PossibleToppings (Float, Float) -- Shape = topping, NOT TShape
+    | UpdateTShape TShapes (Float,Float)
+
+type alias GlobalModel = {gameState : GameState
+                         ,level : Int
+                         , rando : List Int
+                         , alottedTime : Float
+                         , toppings : List(TShapes)}
+    
+
+-- TShapes are the toppings with x,y coordinates
+type TShapes = Shape PossibleToppings (Float,Float)
+{- 
+USER-DEFINED TYPES
+You can define as many types as you'd like below, and
+you will be able to use them in your types above.
+-}
