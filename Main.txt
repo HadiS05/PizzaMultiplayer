@@ -4,12 +4,16 @@ import Dict exposing (Dict)
 import Random
 import TEASync.Helpers exposing(..)
 import Task
+import Json.Decode as Decode
+import Html.Events exposing (on)
 
 myShapes localModel globalModel =
   [case localModel.localState of
     AtMainMenu -> let
                     player = case globalModel.gameState of
                                 PlayerOneJoined -> PlayerTwo
+                                PlayerTwoLeft -> PlayerTwo
+                                PlayerOneLeft -> PlayerOne
                                 _ -> case localModel.localState of
                                         PlayingGame _ p -> p
                                         _ -> PlayerOne
@@ -68,14 +72,14 @@ myShapes localModel globalModel =
                                     |> (if globalModel.gameState == PlayerTwoJoined then notifyTap (GlobalMsg <| StartGame MultiPlayer)                                                 
                                        else identity)
                               ]
-    PlayingGame localGameState player ->if  globalModel.gameState /= Playing then
+    PlayingGame localGameState player ->if globalModel.gameState == PlayerOneLeft || globalModel.gameState == PlayerTwoLeft then
                                             [rect 1920 1080
                                               |> filled bgRed
                                             ,text "It seems a player has left."
                                               |> centered
                                               |>fixedwidth
                                               |> filled textColourBeige
-                                            ] |> group
+                                            ,text "Exiting to Main Menu..." |> centered |> fixedwidth |> filled textColourBeige |> move (0,-15)] |> group |> notifyEnter (LocalMsg <| QuitGame 1 player)
                                         else
                                           let
                                               time = localModel.time - localModel.stime
@@ -90,7 +94,7 @@ myShapes localModel globalModel =
                                                                 , addCheese startPizza localModel globalModel |> move(-60,0)
                                                                 , toppingTable localModel |> move(0,-2)
                                                                 , skeletonEnv localModel
-                                                                , (text <| ((String.fromInt <| truncate remainingTime) ++ " sec.")) |> centered |> bold |> filled (if time >= globalModel.alottedTime - 10 then red else localModel.buttonColour) |> scale 0.8 |> move(0,34)
+                                                                , (text <| ((String.fromInt <| truncate remainingTime) ++ " sec.")) |> centered |> bold |> filled (if time >= globalModel.alottedTime - 10 then red else black) |> scale 0.8 |> move(0,34)
                                                                 , if localGameState == MultiPlayer then
                                                                      if time < 15 then 
                                                                          if time < 8 then 
@@ -108,7 +112,7 @@ myShapes localModel globalModel =
                                                                   , addCheese startPizza localModel globalModel |> move(-60,0)
                                                                   , toppingTable localModel |> move(0,-2)
                                                                   , skeletonEnv localModel
-                                                                  , text ((String.fromInt (truncate <| totalTime)) ++ " sec.") |> centered |> bold |> filled localModel.buttonColour |> scale 0.8 |> move(0,34)
+                                                                  , text ((String.fromInt (truncate <| totalTime)) ++ " sec.") |> centered |> bold |> filled black |> scale 0.8 |> move(0,34)
                                                                   , if localGameState == MultiPlayer then
                                                                        if localModel.time < 15 + localModel.stime then 
                                                                            if localModel.time < 8 + localModel.stime then 
@@ -194,19 +198,22 @@ drawTShape tshape newpt =
               Shape Pineapple pt -> pineappleTopping |> scale 0.6 |> move newpt |> notifyMouseDownAt ((GrabTShape tshape) >> LocalMsg)
               _ -> rect 0 0 |> filled (rgba 0 0 0 0)
               
-updateTShape toppingsL tshape newpt =
+updateTShape toppingsL tshape newpt globalModel =
     let   
       new_toppingL =
          toppingsL 
             |>List.filter (\(tshape2) -> if (tshape2) == tshape then False else True) 
     in
     case tshape of
-      Shape topping pt -> Shape topping newpt :: new_toppingL
+      Shape topping _ -> case globalModel.level of
+                            1 -> Shape topping newpt :: new_toppingL
+                            2 -> Shape topping newpt :: new_toppingL
+                            3 -> Shape topping newpt :: new_toppingL
+                            _ -> Shape topping newpt :: new_toppingL
+                           
+ -- Shape topping newpt :: new_toppingL |> move (85,3) |> move(-15,-15)
  -- case tshape of
  --   Shape topping pt -> (Shape topping newpt) :: new_toppings
-
-sub (x,y) (u,v) = (x-(1.5*u),y-(1.5*v))
-add (x,y) (u,v) = (x+(1.5*u),y+(1.5*v))
 
 orderPizza : Pizza
 orderPizza = {topping = []
@@ -241,13 +248,13 @@ menuIcon localModel = group[
             ,roundedRect 20 8 3 |> filled localModel.buttonColour |> move(0,-10)
            ] |> scale 0.5 |> notifyTap (LocalMsg <| Go2MenuScreen)
            
-timerIcon localModel = group [circle 10 |> outlined (solid 2) localModel.buttonColour
-                  ,rect 2 4 |> filled localModel.buttonColour|> move(0,11)
-                  ,rect 4 2 |> filled localModel.buttonColour |> move(0,13)
-                  ,group[rect 2 4 |> filled localModel.buttonColour |> move(0,11)
-                        ,rect 4 2 |> filled localModel.buttonColour |> move(0,13)] |> rotate (degrees -30)
-                  ,wedge 8 0.05 |> filled localModel.buttonColour |> scaleY 0.25 |> rotate (degrees -90) |> move (0,7)
-                  ,wedge 8 0.05 |> filled localModel.buttonColour |> scaleY 0.25 |> rotate (degrees 180) |> move (7.6,-0.5)
+timerIcon localModel = group [circle 10 |> outlined (solid 2) black
+                  ,rect 2 4 |> filled black|> move(0,11)
+                  ,rect 4 2 |> filled black |> move(0,13)
+                  ,group[rect 2 4 |> filled black |> move(0,11)
+                        ,rect 4 2 |> filled black |> move(0,13)] |> rotate (degrees -30)
+                  ,wedge 8 0.05 |> filled black |> scaleY 0.25 |> rotate (degrees -90) |> move (0,7)
+                  ,wedge 8 0.05 |> filled black |> scaleY 0.25 |> rotate (degrees 180) |> move (7.6,-0.5)
                   ] |> scale 0.7
                   
 pizza1Shape localModel = [circle 7 |> filled (if startPizza.cheese then (rgb 240 170 26) else sauceRedDefault) |> addOutline (solid 1) localModel.toppingColour |> move(-10,10)
@@ -280,7 +287,7 @@ toppingTable localModel = group[
                ,circle 10 |> filled plateBeige |> addOutline (solid 0.1) black |> move(9,-45)
                ,cheeseTopping |> move(-11,32)
                  |>notifyMouseDownAt ((GrabTopping Cheese) >> LocalMsg)
-               ,spinachTopping |> scale 0.8 |> move (9,15)
+               ,spinachTopping |> scale 0.8 |> move(9,15)
                  |>notifyMouseDownAt ((GrabTopping Spinach) >> LocalMsg)
                ,mushroomTopping |> scale 0.8 |> move(-9,0)
                  |>notifyMouseDownAt ((GrabTopping Mushroom) >> LocalMsg)
@@ -340,9 +347,9 @@ menuPage globalModel localModel =
       ,text "Reset"
         |> filled textColourBeige
         |> scale 0.6
-        |> move (22,-37)] |> group |> notifyTap (LocalMsg <| Restart player)
+        |> move (22,-37)] |> group |> move(-30,0) |> notifyTap (LocalMsg <| Restart player)
       ,
-      text "Have Feedback? Let us know"
+      text "🔗Have Feedback? Let us know"
         |> underline
         |> filled blue
         |> scale 0.4
@@ -353,16 +360,13 @@ menuPage globalModel localModel =
         |> filled textColourBeige
         |> scale 0.7
         |> move (-22,-23)
-      ,
-      [roundedRect 22 13 4
-        |> filled bgRed
-        |> move (-30,-35)
-      ,text "Exit"
-        |> filled textColourBeige
-        |> scale 0.7
-        |> move (-37,-38)] |> group |> notifyTap (LocalMsg <| Exit)
+      ,xButton |> scale 0.65 |> move (40,48) |> notifyTap (LocalMsg <| Exit)
     ]
 
+xButton = group[circle 10 |> filled sauceRedDefault
+               ,roundedRect 3 15 2 |> filled bgBeigeDefault |> rotate (degrees 45)
+               ,roundedRect 15 3 2 |> filled bgBeigeDefault |> rotate (degrees 45)
+               ]
 quitBox globalModel localModel = 
   let
     player = case globalModel.gameState of
@@ -446,7 +450,6 @@ settingsPage =
       |> filled black
       |> scale 0.3
       |> move(-40,13)
-      |> notifyTap (LocalMsg <| Change "bgColour" (rgb 0 191 99))
     , circle 5
       |> filled bgRed
       |> addOutline (solid 1) black
@@ -478,120 +481,120 @@ settingsPage =
       |> scale 0.3
       |> move(-40,-1)
     , circle 5
-      |> filled bgRed
+      |> filled (rgb 109 48 12)
       |> addOutline (solid 1) black
       |> move (-20,0)
-      |> notifyTap (LocalMsg <| Change "tableColour" bgRed)
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 109 48 12))
     ,circle 5
-      |> filled (rgb 255 187 229)
+      |> filled (rgb 178 88 144)
       |> addOutline (solid 1) black
       |> move (-5,0)
-      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 255 187 229))
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 178 88 144))
     ,circle 5
-      |> filled (rgb 156 211 225)
+      |> filled (rgb 50 144 173)
       |> addOutline (solid 1) black
       |> move (10,0)
-      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 156 211 225))
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 50 144 173))
     ,circle 5
       |> filled (rgb 173 121 91)
       |> addOutline (solid 1) black
       |> move (25,0)
       |> notifyTap (LocalMsg <| Change "tableColour" (rgb 173 121 91))
     ,circle 5
-      |> filled (rgb 0 191 99)
+      |> filled (rgb 40 132 88)
       |> addOutline (solid 1) black
       |> move (40,0)
-      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 0 191 99))
+      |> notifyTap (LocalMsg <| Change "tableColour" (rgb 40 132 88))
     ,text "Topping Place"
       |> centered
       |> filled black
       |> scale 0.3
       |> move(-40,-15)
     , circle 5
-      |> filled bgRed
+      |> filled (rgb 150 18 1)
       |> addOutline (solid 1) black
       |> move (-20,-14)
-      |> notifyTap (LocalMsg <| Change "toppingColour" bgRed)
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 150 18 1))
     ,circle 5
-      |> filled (rgb 255 187 229)
+      |> filled (rgb 241 124 196)
       |> addOutline (solid 1) black
       |> move (-5,-14)
-      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 255 187 229))
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 241 124 196))
     ,circle 5
-      |> filled (rgb 156 211 225)
+      |> filled (rgb 193 219 218)
       |> addOutline (solid 1) black
       |> move (10,-14)
-      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 156 211 225))
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 193 219 218))
     ,circle 5
-      |> filled (rgb 173 121 91)
+      |> filled (rgb 255 166 31)
       |> addOutline (solid 1) black
       |> move (25,-14)
-      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 173 121 91))
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 255 166 31))
     ,circle 5
-      |> filled (rgb 0 191 99)
+      |> filled (rgb 0 199 99)
       |> addOutline (solid 1) black
       |> move (40,-14)
-      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 0 191 99))
+      |> notifyTap (LocalMsg <| Change "toppingColour" (rgb 0 199 99))
     ,text "Buttons"
       |> centered
       |> filled black
       |> scale 0.3
       |> move (-40,-29)
     , circle 5
-      |> filled bgRed
+      |> filled (rgb 150 18 1)
       |> addOutline (solid 1) black
       |> move (-20,-28)
-      |> notifyTap (LocalMsg <| Change "buttonColour" bgRed)
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 150 18 1))
     ,circle 5
-      |> filled (rgb 255 187 229)
+      |> filled (rgb 241 124 196)
       |> addOutline (solid 1) black
       |> move (-5,-28)
-      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 255 187 229))
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 241 124 196))
     ,circle 5
-      |> filled (rgb 156 211 225)
+      |> filled (rgb 193 219 218)
       |> addOutline (solid 1) black
       |> move (10,-28)
-      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 156 211 225))
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 193 219 218))
     ,circle 5
-      |> filled (rgb 173 121 91)
+      |> filled (rgb 255 166 31)
       |> addOutline (solid 1) black
       |> move (25,-28)
-      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 173 121 91))
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 255 166 31))
     ,circle 5
-      |> filled (rgb 0 191 99)
+      |> filled (rgb 40 132 88)
       |> addOutline (solid 1) black
       |> move (40,-28)
-      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 0 191 99))
+      |> notifyTap (LocalMsg <| Change "buttonColour" (rgb 40 132 88))
     ,text "Crust"
       |> centered
       |> filled black
       |> scale 0.3
       |> move (-40,-43)
     , circle 5
-      |> filled bgRed
+      |> filled (rgb 255 166 31)
       |> addOutline (solid 1) black
       |> move (-20,-42)
-      |> notifyTap (LocalMsg <| Change "crustColour" bgRed)
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 255 166 31))
     ,circle 5
-      |> filled (rgb 255 187 229)
+      |> filled (rgb 250 147 88)
       |> addOutline (solid 1) black
       |> move (-5,-42)
-      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 255 187 229))
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 250 147 88))
     ,circle 5
-      |> filled (rgb 156 211 225)
+      |> filled (rgb 205 123 71)
       |> addOutline (solid 1) black
       |> move (10,-42)
-      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 156 211 225))
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 205 123 71))
+    ,circle 5
+      |> filled (rgb 223 80 0)
+      |> addOutline (solid 1) black
+      |> move (25,-42)
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 223 80 0))
     ,circle 5
       |> filled (rgb 173 121 91)
       |> addOutline (solid 1) black
-      |> move (25,-42)
-      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 173 121 91))
-    ,circle 5
-      |> filled (rgb 0 191 99)
-      |> addOutline (solid 1) black
       |> move (40,-42)
-      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 0 191 99))
+      |> notifyTap (LocalMsg <| Change "crustColour" (rgb 173 121 91))
     ,text "Reset to Default"
       |> centered
       |> underline
@@ -599,11 +602,8 @@ settingsPage =
       |> scale 0.4
       |> move(0,-55)
       |> notifyTap (LocalMsg <| Change "default" bgRed)
-    , text "X"
-      |> centered
-      |> bold
-      |> filled black
-      |> move(42,45)
+    , xButton |> scale 0.65
+      |> move(40,48)
       |> notifyTap (LocalMsg <| Exit)
   ]
   
@@ -950,11 +950,10 @@ localUpdate msg localModel globalModel =
             _ -> PlayerOne
       in
         ({ localModel | stime = localModel.time, localState = PlayingGame st player }, Cmd.none, Cmd.none)
---    QuitGame n p -> (if n == 1 then ({localModel | localState = InLobby p, overlay = None}, Cmd.none, Cmd.none) else ({localModel | overlay = None}, Cmd.none, newMsg <| Quitted))
+    QuitGame n p -> (if n == 1 then ({localModel | localState = AtMainMenu, overlay = None}, Cmd.none, newMsg <| PlayerLeft p) else ({localModel | overlay = None}, Cmd.none, Cmd.none))
 
     GrabTopping topping pt -> ({localModel | mouseState = Draggingshape topping pt}, Cmd.none, Cmd.none)
     GrabTShape tshape newpt -> ({localModel| mouseState = DraggingTShape tshape newpt},Cmd.none, Cmd.none)
-    _ -> (localModel, Cmd.none, Cmd.none)
 
 updateTshapePos tshape newpt =
     case tshape of
@@ -974,7 +973,13 @@ globalUpdate msg globalModel =
                   case player of
                     PlayerOne -> PlayerOneJoined
                     PlayerTwo -> PlayerTwoJoined
-                    _ -> PlayerOneJoined
+           }, Cmd.none, Cmd.none )
+        PlayerLeft player ->
+          ({ globalModel | 
+                gameState = 
+                  case player of
+                    PlayerOne -> PlayerOneLeft
+                    PlayerTwo -> PlayerTwoLeft
            }, Cmd.none, Cmd.none )
         StartGame st ->
           ( { globalModel | 
@@ -982,16 +987,9 @@ globalUpdate msg globalModel =
            }, Cmd.none
            , newMsg (LocalStart st)
            )
---        Quitted -> ( { globalModel | 
---                          gameState = NoPlayersJoined
---                          }, Cmd.none
---                          , Cmd.none
---                          )
-
         UpdateShape topping pt -> ({globalModel| toppings = (Shape topping pt)::globalModel.toppings}, Cmd.none, Cmd.none)
 
-        UpdateTShape tshape new_pt -> ({globalModel| toppings = (updateTShape globalModel.toppings tshape new_pt)}, Cmd.none, Cmd.none)
-   --     _ -> (globalModel, Cmd.none, Cmd.none)
+        UpdateTShape tshape new_pt -> ({globalModel| toppings = (updateTShape globalModel.toppings tshape new_pt globalModel)}, Cmd.none, Cmd.none)
 initLocal : (LocalModel, Cmd LocalMsg)
 initLocal = ({time = 0
              , stime = 0
@@ -1122,7 +1120,7 @@ leaf = group[
 spinachTopping = group[
                   leaf |> scale 0.5
                  ,leaf |> scale 0.5 |> rotate (degrees 180) |> move(-5,0)
-                 ] |> scale 0.5 |> move(2,0)
+                 ] |> scale 0.5 |> move (2,0)
 
 cheeses = group[
                curve (6.3355,-16.32) [Pull (14.281,-10.09) (22.228,-3.865),Pull (22.872,-3.865) (23.516,-3.865),Pull (25.020,-3.973) (26.523,-4.080),Pull (27.919,-4.402) (29.315,-4.724),Pull (30.496,-4.939) (31.677,-5.154),Pull (33.288,-5.583) (34.899,-6.013),Pull (35.973,-6.442) (37.046,-6.872),Pull (38.228,-7.516) (39.409,-8.161),Pull (40.590,-8.912) (41.771,-9.664),Pull (24.161,-12.99) (6.5503,-16.32)] |> filled (rgb 251 221 75)

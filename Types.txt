@@ -45,9 +45,10 @@ type alias Pizza = {topping : List (PossibleToppings, (Float,Float)), cheese : B
 type GameState 
     = NoPlayersJoined
     | PlayerOneJoined
+    | PlayerOneLeft
     | PlayerTwoJoined
+    | PlayerTwoLeft
     | Playing
---    | Player Left
     
 type LocalState
     = AtMainMenu
@@ -57,7 +58,7 @@ type LocalState
 type LocalGameState = MultiPlayer
                      | SinglePlayer
 
-type Player = PlayerOne | PlayerTwo | Left
+type Player = PlayerOne | PlayerTwo
 
 type LocalMsg 
        =  Tick Float GetKeyState
@@ -98,6 +99,7 @@ type GlobalMsg
     | GetNewTopping
     | LevelUp
     | PlayerJoin Player
+    | PlayerLeft Player
     | StartGame LocalGameState
     | UpdateShape PossibleToppings (Float, Float) -- Shape = topping, NOT TShape
     | UpdateTShape TShapes (Float,Float)
