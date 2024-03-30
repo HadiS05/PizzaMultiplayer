@@ -60,6 +60,8 @@ type LocalGameState = MultiPlayer
 
 type Player = PlayerOne | PlayerTwo
 
+type Target = Name | Empty
+
 type LocalMsg 
        =  Tick Float GetKeyState
           | Go2Singleplayer Player
@@ -77,6 +79,11 @@ type LocalMsg
           | LocalStart LocalGameState
           | GrabTopping PossibleToppings (Float,Float)
           | GrabTShape TShapes (Float,Float)
+          | UpdateTShape2 TShapes (Float,Float)
+          | UpdateShape2 PossibleToppings (Float, Float)
+          | ChangeName String
+          | KeyBoard Target
+          | Input String
 
 
 type alias LocalModel = {time : Float
@@ -89,7 +96,10 @@ type alias LocalModel = {time : Float
                          , buttonColour : Color
                          , crustColour : Color
                          , stime : Float
-                         , otime : Float}
+                         , otime : Float
+                         , toppings2 : List(TShapes)
+                         , name : String
+                         ,openKeyboard : Bool}
                          
 
 type GlobalMsg
