@@ -3,10 +3,6 @@ import GraphicSVG.EllieApp exposing(..)
 import Dict exposing (Dict)
 import Random
 import TEASync.Helpers exposing(..)
--- import Html exposing (Html, Attribute, input, text)
--- import Html.Attributes exposing (..)
-import Html.Events exposing (onInput)
-
 
 myShapes localModel globalModel =
   [case localModel.localState of
@@ -34,7 +30,7 @@ myShapes localModel globalModel =
                             |> move (40,-20)
                           ,text "Single Player"
                             |> filled textColourBeige
-                            |> move (7,-23)] |> group |> notifyTap (LocalMsg <| Go2Singleplayer player)
+                            |> move (7,-23)] |> group |> notifyTap (LocalMsg <| Go2Singleplayer player) |> notifyTap (GlobalMsg <| GetNewTopping)
                           ,
                           text "Pizza"
                             |> filled textColourBeige
@@ -72,6 +68,7 @@ myShapes localModel globalModel =
                                     |> move (0, -20)
                                     |> (if globalModel.gameState == PlayerTwoJoined then notifyTap (GlobalMsg <| StartGame MultiPlayer)                                                 
                                        else identity)
+                                    |> notifyTap (GlobalMsg <| GetNewTopping)
                               ]
     PlayingGame localGameState player ->if globalModel.gameState == PlayerOneLeft || globalModel.gameState == PlayerTwoLeft then
                                             [rect 1920 1080
@@ -86,13 +83,22 @@ myShapes localModel globalModel =
                                               acc_time = localModel.time - localModel.stime
                                               totalTime = globalModel.alottedTime - 15
                                               remainingTime = globalModel.alottedTime - acc_time
+                                              names = Dict.fromList [("PlayerOne",localModel.name), ("PlayerTwo", localModel.name)]    
                                            in
                                               case localGameState of
                                                 MultiPlayer -> if acc_time <= globalModel.alottedTime && acc_time >= 15 then 
                                                                 [background localModel
                                                                 , bell
-                                                                , addCheese startPizza localModel globalModel |> move(60,0)
-                                                                , addCheese startPizza localModel globalModel |> move(-60,0)
+                                                                , if globalModel.p1Cheese then addCheese True localModel globalModel |> move(60,0) else addCheese False localModel globalModel |> move(60,0)
+                                                                , if globalModel.p2Cheese then addCheese True localModel globalModel |> move(-60,0) else addCheese False localModel globalModel |> move(-60,0)
+                                                                , if player == PlayerOne then
+                                                                     text (case (Dict.get "PlayerOne" names) of
+                                                                          Just name -> name
+                                                                          Nothing -> "Player 1") |> fixedwidth |> centered |> filled black |> move (60,-40)
+                                                                  else
+                                                                     text (case (Dict.get "PlayerTwo" names) of
+                                                                          Just name -> name
+                                                                          Nothing -> "Player 2") |> fixedwidth |> centered |> filled black |> move (-60,-40)
                                                                 , toppingTable localModel |> move(0,-2)
                                                                 , skeletonEnv localModel
                                                                 , (text <| ((String.fromInt <| truncate remainingTime) ++ " sec.")) |> centered |> bold |> filled (if acc_time >= globalModel.alottedTime - 10 then red else black) |> scale 0.8 |> move(0,34)
@@ -109,8 +115,8 @@ myShapes localModel globalModel =
                                                               else if acc_time < 15 then
                                                                   [background localModel
                                                                   , bell
-                                                                  , addCheese startPizza localModel globalModel |> move(60,0)
-                                                                  , addCheese startPizza localModel globalModel |> move(-60,0)
+                                                                  , if globalModel.p1Cheese then addCheese True localModel globalModel |> move(60,0) else addCheese False localModel globalModel |> move(60,0)
+                                                                  , if globalModel.p2Cheese then addCheese True localModel globalModel |> move(-60,0) else addCheese False localModel globalModel |> move(-60,0)
                                                                   , toppingTable localModel |> move(0,-2)
                                                                   , skeletonEnv localModel
                                                                   , text ((String.fromInt (truncate <| totalTime)) ++ " sec.") |> centered |> bold |> filled black |> scale 0.8 |> move(0,34)
@@ -130,7 +136,7 @@ myShapes localModel globalModel =
                                                 SinglePlayer -> if acc_time <= globalModel.alottedTime && acc_time >= 15 then 
                                                                 [background localModel
                                                                 , bell
-                                                                , addCheese startPizza localModel globalModel |> move(0,-2)
+                                                                , if globalModel.p1Cheese || globalModel.p2Cheese then addCheese True localModel globalModel |> move(0,-2) else addCheese True localModel globalModel |> move(0,-2)
                                                                 , toppingTable localModel |> move(-60,0)
                                                                 , skeletonEnv localModel
                                                                 , (text <| ((String.fromInt <| truncate remainingTime) ++ " sec.")) |> centered |> bold |> filled (if acc_time >= globalModel.alottedTime - 10 then red else black) |> scale 0.8 |> move(65,-10)
@@ -147,7 +153,7 @@ myShapes localModel globalModel =
                                                               else if acc_time < 15 then
                                                                   [background localModel
                                                                   , bell
-                                                                  , addCheese startPizza localModel globalModel |> move(0,-2)
+                                                                  , if globalModel.p1Cheese || globalModel.p2Cheese then addCheese True localModel globalModel |> move(0,-2) else addCheese True localModel globalModel |> move(0,-2)
                                                                   , toppingTable localModel |> move(-60,0)
                                                                   , skeletonEnv localModel
                                                                   , text ((String.fromInt (truncate <| totalTime)) ++ " sec.") |> centered |> bold |> filled black |> scale 0.8 |> move(65,-10)
@@ -165,33 +171,10 @@ myShapes localModel globalModel =
                                                                   losingScreen 
                                                                   --end of single player
   ,(menuIcon localModel) |> move(-80,50)
-  ,(settingsButton localModel) |> scale 0.8 |> move(120,18)
-  ,if localModel.overlay == MenuScreen then
-    if localModel.time <= 4.25+localModel.otime then
-      menuPage globalModel localModel |> move((120/pi)*(atan (2.5*(localModel.time-localModel.otime) - 5)) - 98.3,0)
-    else
-      menuPage globalModel localModel |> move(-45,0)
-    else if localModel.overlay == Settings then
-      if localModel.time <= 4.25+localModel.otime then
-        settingsPage |> move((120/pi)*(atan (-2.5*(localModel.time-localModel.otime) + 5)) + 98.3,0)
-      else
-        settingsPage |> move(45,0)
-    else if localModel.overlay == Quit then
-        quitBox globalModel localModel
-    else
-      group []
-  ,if localModel.openKeyboard then
-      [keyBoard |> move(0,-20)
-      ,[roundedRect 70 10 2
-        |> filled white |> addOutline (solid 1) black
-      ,text localModel.name |> centered |> fixedwidth |> filled black |> scale 0.8 |> move (0,-3)
-      ] |> group |> move(0,30)
-      ] |> group
-   else
-     group []]
+  ,(settingsButton localModel) |> scale 0.8 |> move(120,18)]
       
    ++
-   if localModel.localState == PlayingGame MultiPlayer PlayerOne || localModel.localState == PlayingGame MultiPlayer PlayerTwo || localModel.localState == PlayingGame SinglePlayer PlayerOne then
+   (if localModel.localState == PlayingGame MultiPlayer PlayerOne || localModel.localState == PlayingGame MultiPlayer PlayerTwo || localModel.localState == PlayingGame SinglePlayer PlayerOne || localModel.localState == PlayingGame SinglePlayer PlayerTwo then
      (case localModel.mouseState of 
          Waiting -> []
          Draggingshape topping pt -> [(drawTopping topping) |> move pt] --drawTopping topping |> move pt 
@@ -222,7 +205,7 @@ myShapes localModel globalModel =
            [rect 192 128 |> filled (rgba 0 0 0 0.7)
                |> notifyMouseMoveAt (MovePos >> LocalMsg)
                |> notifyMouseUp (LocalMsg(LetGo))
-               |> notifyLeave (LocalMsg(LetGo))
+             --  |> notifyLeave (LocalMsg(LetGo))
                |> case localModel.localState of
                      AtMainMenu -> notifyMouseUp (GlobalMsg(UpdateShape topping pt))
                      InLobby _ -> notifyMouseUp (GlobalMsg(UpdateShape topping pt))
@@ -231,24 +214,490 @@ myShapes localModel globalModel =
                                            SinglePlayer -> notifyMouseUp (LocalMsg(UpdateShape2 topping pt)) --THIS LINE
                                                        --error is here for single player. If I change to the multiplayer line it works fine
                                                        --but then the toppings show for everyone instead of just the one player
-           ] -- !!!!!!!!!!!!!!!!!!!!!!!!! ----- It should be fixed now. You weren't drawing the local toppings on the screen which I think caused it
-                                             -- I added it in line 200, let me know if I misunderstood the error -Ramish 
+             ,
+            case localModel.localState of
+              PlayingGame MultiPlayer p ->  case globalModel.level of
+                                               1 -> snapping1 topping (toppingToTshape topping pt) 1 p
+                                               2 -> snapping2 topping (toppingToTshape topping pt) 1
+                                               3 -> snapping3 topping (toppingToTshape topping pt) 1
+                                               _ -> snapping3 topping (toppingToTshape topping pt) 1
+                                               
+              PlayingGame SinglePlayer _ -> case globalModel.level of
+                                               1 -> snappingS1 topping (toppingToTshape topping pt) 1
+                                               2 -> snappingS2 topping (toppingToTshape topping pt) 1
+                                               3 -> snappingS3 topping (toppingToTshape topping pt) 1
+                                               _ -> snappingS3 topping (toppingToTshape topping pt) 1
+              
+              _ -> []|>group
+           ] -- !!!!!!!!!!!!!!!!!!!!!!!!!  
          DraggingTShape tshape pt -> 
               [rect 192 128 |> filled (rgba 0 0 0 0.7)
                   |> notifyMouseMoveAt (MovePos >> LocalMsg)
                   |> notifyMouseUp (LocalMsg(LetGo))
-                  |> notifyLeave (LocalMsg(LetGo))
+                --  |> notifyLeave (LocalMsg(LetGo))
                   |> case localModel.localState of
                         AtMainMenu -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
                         InLobby _ -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
                         PlayingGame p _ -> case p of
                                               MultiPlayer -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
                                               SinglePlayer -> notifyMouseUp (LocalMsg(UpdateTShape2 tshape pt))
+               ,
+              case localModel.localState of
+                PlayingGame MultiPlayer p ->  case globalModel.level of
+                                                 1 -> snapping1 (tshapeToTopping tshape) tshape 2 p
+                                                 2 -> snapping2 (tshapeToTopping tshape) tshape 2
+                                                 3 -> snapping3 (tshapeToTopping tshape) tshape 2
+                                                 _ -> snapping3 (tshapeToTopping tshape) tshape 2
+                                               
+                PlayingGame SinglePlayer _ -> case globalModel.level of
+                                                 1 -> snappingS1 (tshapeToTopping tshape) tshape 2
+                                                 2 -> snappingS2 (tshapeToTopping tshape) tshape 2
+                                                 3 -> snappingS3 (tshapeToTopping tshape) tshape 2
+                                                 _ -> snappingS3 (tshapeToTopping tshape) tshape 2
+              
+                _ -> []|>group              
               ]
 
      )
   else
-    []
+    [])
+  ++
+  [if localModel.overlay == MenuScreen then
+    if localModel.time <= 4.25+localModel.otime then
+      menuPage globalModel localModel |> move((120/pi)*(atan (2.5*(localModel.time-localModel.otime) - 5)) - 98.3,0)
+    else
+      menuPage globalModel localModel |> move(-45,0)
+    else if localModel.overlay == Settings then
+      if localModel.time <= 4.25+localModel.otime then
+        settingsPage |> move((120/pi)*(atan (-2.5*(localModel.time-localModel.otime) + 5)) + 98.3,0)
+      else
+        settingsPage |> move(45,0)
+    else if localModel.overlay == Quit then
+        quitBox globalModel localModel
+    else if localModel.overlay == Hint then
+      if localModel.time <= 4.25+localModel.otime then
+        hintPage |> move((120/pi)*(atan (-2.5*(localModel.time-localModel.otime) + 5)) + 98.3,0)
+      else
+        group [
+        hintPage |> move(45,0)
+        ,
+        if localModel.time - localModel.otime < 7.25 then
+          order localModel globalModel |> scale 0.65 |> move (50, -15)
+        else
+          group []
+        ]
+    else
+      group []
+  ,if localModel.openKeyboard then
+      [keyBoard |> move(0,-20)
+      ,[roundedRect 70 10 2
+        |> filled white |> addOutline (solid 1) black
+      ,text localModel.name |> centered |> fixedwidth |> filled black |> scale 0.8 |> move (0,-3)
+      ] |> group |> move(0,30)
+      ] |> group
+   else
+     group []]
+    
+
+
+snappingS3 topping tshape val =
+  let
+    output = case val of
+               1 -> UpdateShape2 topping
+               2 -> UpdateTShape2 tshape
+               _ -> UpdateShape2 topping
+  in
+    group[
+    circle 7
+      |> filled (rgba 255 255 0 0.6)
+      |> move (0,-2)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (LocalMsg(output (0,-2)))
+     ,
+    circle 7
+      |> filled (rgba 255 255 0 0.6)
+      |> move (0,-17)    
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (LocalMsg(output (0,-17)))
+     ,
+    circle 7
+      |> filled (rgba 255 255 0 0.6)
+      |> move (0,13)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (LocalMsg(output (0,13)))
+     ,
+    circle 7
+      |> filled (rgba 255 255 0 0.6)
+      |> move (15,-2)    
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (LocalMsg(output (15,-2)))
+     ,
+    circle 7
+      |> filled (rgba 255 255 0 0.6)
+      |> move (-15,-2)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (LocalMsg(output (-15,-2)))
+    ]
+
+
+
+snappingS2 topping tshape val =
+  let
+    output = case val of
+               1 -> UpdateShape2 topping
+               2 -> UpdateTShape2 tshape
+               _ -> UpdateShape2 topping
+  in
+   group[
+   circle 7
+     |> filled (rgba 0 255 0 0.6)
+     |> move (0,-2)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (0,-2)))
+    ,
+   circle 7
+     |> filled (rgba 0 255 0 0.6)
+     |> move (10,8)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (10,8)))
+    ,
+   circle 7
+     |> filled (rgba 0 255 0 0.6)
+     |> move (-10,8)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (-10,8)))
+    ,
+   circle 7
+     |> filled (rgba 0 255 0 0.6)
+     |> move (10,-12)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (10,-12)))
+    ,
+   circle 7
+     |> filled (rgba 0 255 0 0.6)
+     |> move (-10,-12)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (-10,-12)))
+   ]
+
+
+
+  
+snappingS1 topping tshape val =
+  let
+    output = case val of
+               1 -> UpdateShape2 topping
+               2 -> UpdateTShape2 tshape
+               _ -> UpdateShape2 topping
+  in
+   group[
+   circle 7
+     |> filled (rgba 0 0 255 0.6)
+     |> move (10,8)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (10,8)))
+   ,
+   circle 7
+     |> filled (rgba 0 0 255 0.6)
+     |> move (-10,8)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (-10,8)))
+   ,
+   circle 7
+     |> filled (rgba 0 0 255 0.6)
+     |> move (10,-12)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (10,-12)))
+   ,
+   circle 7
+     |> filled (rgba 0 0 255 0.6)
+     |> move (-10,-12)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> notifyMouseUp (LocalMsg(output (-10,-12)))
+   ]
+
+
+
+
+
+
+snapping3 topping tshape val=
+  let
+    output = case val of
+               1 -> UpdateShape topping
+               2 -> UpdateTShape tshape
+               _ -> UpdateShape topping
+  in
+   group[
+   --left3
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (-60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-60,0)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (-60,15)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-60,15)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (-60,-15)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-60,-15)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (-75,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-75,0)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (-45,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-45,0)))
+    --right
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (60,0)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (60,15)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (60,15)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (60,-15)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (60,-15)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (75,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (75,0)))
+     ,
+     circle 7
+       |> filled (rgba 255 255 0 0.7)
+       |> move (45,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (45,0)))
+     
+   ]  
+  
+  
+  
+  
+  
+snapping2 topping tshape val=
+  let
+    output = case val of
+               1 -> UpdateShape topping
+               2 -> UpdateTShape tshape
+               _ -> UpdateShape topping
+  in
+   group[
+   --left
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (-60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-60,0)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (-50,10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-50,10)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (-70,10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-70,10)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (-50,-10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-50,-10)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (-70,-10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (-70,-10)))
+    --right
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move(60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (60,0)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (70,10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (70,10)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (50,10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (50,10)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (70,-10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (70,-10)))
+     ,
+     circle 7
+       |> filled (rgba 0 255 0 0.8)
+       |> move (50,-10)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> notifyMouseUp (GlobalMsg(output (50,-10)))
+   
+   ]
+
+
+
+
+snapping1 topping tshape val p =
+  let
+    output = case val of
+               1 -> UpdateShape topping
+               2 -> UpdateTShape tshape
+               _ -> UpdateShape topping
+  in
+   group[
+   --left pizza
+   circle 26
+     |> filled sauceRedDefault
+     |> move (-60,0)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+   ,circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (-70,10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (-70,10)))
+      
+    ,circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (-50,10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (-50,10)))
+     ,
+    circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (-70,-10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (-70,-10)))
+      
+     ,
+    circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (-50,-10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (-50,-10)))
+      
+      
+     --right pizza
+    ,circle 26
+       |> filled sauceRedDefault
+       |> move (60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+    ,circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (70,10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (70,10)))
+      
+     ,
+    circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (50,10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (50,10)))
+      
+     ,
+    circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (70,-10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (70,-10)))
+      
+     ,
+    circle 7  
+      |> filled (rgba 0 0 255 0.5)
+      |> move (50,-10)
+      |> notifyMouseMoveAt (MovePos >> LocalMsg)
+      |> notifyMouseUp (LocalMsg(LetGo))
+      |> notifyMouseUp (GlobalMsg(output (50,-10)))
+      
+   ] 
+
+toppingToTshape topping pt =
+  Shape topping pt
+  
+tshapeToTopping tshape = 
+        case tshape of
+          Shape topping pt -> topping
+
 
 drawTopping topping =
             case topping of
@@ -779,6 +1228,30 @@ settingsPage =
       |> notifyTap (LocalMsg <| Exit)
   ]
   
+hintPage = 
+  group
+  [roundedRect 110 120 4
+      |> filled black
+      |> move(-2,0)
+    ,roundedRect 110 120 4
+      |> filled textColourBeige
+    ,text "Hint"
+      |> centered
+      |> filled black
+      |> scale 1.5
+      |> move (0,40)
+    ,text "You have 3 seconds to review the order!"
+      |> centered
+      |> filled black
+      |> scale 0.5
+      |> move (0,28)
+    ,line (-40,35) (40,35)
+      |> outlined (solid 1) black
+    , xButton |> scale 0.65
+      |> move(40,48)
+      |> notifyTap (LocalMsg <| Exit)
+  ]
+  
 leaderboardPage =
   group
   [
@@ -840,7 +1313,7 @@ losingScreen =
       |> bold
       |> filled bgRed
       |> scale 0.5
-      |> move (0,-27)] |> group |> notifyTap (LocalMsg <| Go2NextRound) |> notifyTap (GlobalMsg <| LevelUp) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping) |> notifyTap (GlobalMsg <| GetNewTopping)
+      |> move (0,-27)] |> group |> notifyTap (LocalMsg <| Go2NextRound) |> notifyTap (GlobalMsg <| LevelUp)
   ]
   
 finalScreen =
@@ -901,7 +1374,7 @@ winnerScreen =
   ]
 
 -- MODIFYING PIZZA ORDER:
-addCheese : Pizza -> LocalModel -> GlobalModel -> Shape (TEASync.Msg localMsg GlobalMsg globalModel)
+addCheese : Bool -> LocalModel -> GlobalModel -> Shape (TEASync.Msg localMsg GlobalMsg globalModel)
 addCheese pizza localModel globalModel =
       let 
           freshPizza1 = [circle 30 |> filled localModel.crustColour |> move(0,0)
@@ -920,13 +1393,13 @@ addCheese pizza localModel globalModel =
                           ,circle 26 |> filled pizzaCheese |> move(0,0)] ++ pizza3Shape localModel
       in
         case globalModel.level of
-            1 -> if pizza.cheese then cheesePizza1 |> group else freshPizza1 |> group
-            2 -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
-            3 -> if pizza.cheese then cheesePizza3 |> group else freshPizza3 |> group
-            _ -> if pizza.cheese then cheesePizza2 |> group else freshPizza2 |> group
+            1 -> if pizza then cheesePizza1 |> group else freshPizza1 |> group
+            2 -> if pizza then cheesePizza2 |> group else freshPizza2 |> group
+            3 -> if pizza then cheesePizza3 |> group else freshPizza3 |> group
+            _ -> if pizza then cheesePizza2 |> group else freshPizza2 |> group
 
-oneToFive : Random.Generator Int
-oneToFive = Random.int 1 5
+oneToFive : Random.Generator (List Int)
+oneToFive = Random.list 5 (Random.int 1 5)
 
 getNewTopping : Cmd GlobalMsg
 getNewTopping =
@@ -1020,7 +1493,7 @@ generatePizzaOrder pizza localModel globalModel =
         let 
           {topping, cheese} = pizza
         in 
-          [(addCheese pizza localModel globalModel)
+          [(addCheese True localModel globalModel)
           ,(getToppingShapes topping) |> group
           ] |> group --single player not showing dropped items issue might be in this function ^
           
@@ -1088,7 +1561,11 @@ localUpdate msg localModel globalModel =
   case msg of
     Types.Tick t _ -> ({ localModel | time = t }, Cmd.none, Cmd.none)
     Go2Singleplayer p -> ({localModel | stime = localModel.time, localState = PlayingGame SinglePlayer p}, Cmd.none, Cmd.none)
-    Go2NextRound -> ({localModel | stime = localModel.time, overlay = None}, Cmd.none, Cmd.none)
+    Go2NextRound -> ({localModel | stime = localModel.time, overlay = None, toppings2=[], pizza = (setCheese localModel.pizza False)}, Cmd.none, if localModel.localState /= AtMainMenu && localModel.localState /= InLobby PlayerOne && localModel.localState /= InLobby PlayerTwo then (newMsg <| StartGame (case localModel.localState of 
+                                                                                                                                                                                                                                                                    PlayingGame st _ -> st
+                                                                                                                                                                                                                                                                    _ -> SinglePlayer))
+                                                                                                     else
+                                                                                                       Cmd.none)
     NewPos _ -> (localModel, Cmd.none, Cmd.none)
     MovePos newpt -> ({localModel | mouseState = case localModel.mouseState of
                                                    Waiting -> Waiting
@@ -1105,9 +1582,10 @@ localUpdate msg localModel globalModel =
                         "default" -> ({localModel | bgColour = (Tuple.first initLocal).bgColour, tableColour = (Tuple.first initLocal).tableColour, toppingColour = (Tuple.first initLocal).toppingColour,buttonColour = (Tuple.first initLocal).buttonColour, crustColour = (Tuple.first initLocal).crustColour}, Cmd.none, Cmd.none)
                         _ -> (localModel, Cmd.none, Cmd.none)
     Go2Settings -> ({localModel | overlay = Settings, otime = localModel.time},Cmd.none,Cmd.none)
-    Restart player -> ((if localModel.localState == PlayingGame MultiPlayer player then {localModel | overlay = Quit} else {localModel | localState = AtMainMenu, overlay = None}), Cmd.none, Cmd.none)
+    Restart player -> ((if localModel.localState == PlayingGame MultiPlayer player then {localModel | overlay = Quit} else {localModel | localState = AtMainMenu, overlay = None, toppings2 = List.filter (\x -> x == (Shape Spinach (0,0))) localModel.toppings2}), Cmd.none, Cmd.none)
     Exit -> ({localModel | overlay = None}, Cmd.none, Cmd.none)
     Go2MenuScreen -> ({localModel | overlay = MenuScreen, otime = localModel.time}, Cmd.none, Cmd.none)
+    Go2HintScreen -> ({localModel | overlay = Hint, otime = localModel.time}, Cmd.none, Cmd.none)
     LocalPlayerJoin player -> 
       ( { localModel | localState = InLobby player }
       , Cmd.none
@@ -1122,7 +1600,7 @@ localUpdate msg localModel globalModel =
             _ -> PlayerOne
       in
         ({ localModel | stime = localModel.time, localState = PlayingGame st player }, Cmd.none, Cmd.none)
-    QuitGame n p -> (if n == 1 then ({localModel | localState = AtMainMenu, overlay = None}, Cmd.none, newMsg <| PlayerLeft p) else ({localModel | overlay = None}, Cmd.none, Cmd.none))
+    QuitGame n p -> (if n == 1 then ({localModel | localState = AtMainMenu, overlay = None}, Cmd.none, newMsg <| PlayerLeft p) else ({localModel | overlay = None}, Cmd.none, Cmd.none))--, {globalModel | toppings = List.filter (\x -> x == (Shape Spinach (0,0))) globalModel.toppings}
 
     GrabTopping topping pt -> ({localModel | mouseState = Draggingshape topping pt}, Cmd.none, Cmd.none)
     GrabTShape tshape newpt -> ({localModel| mouseState = DraggingTShape tshape newpt},Cmd.none, Cmd.none)
@@ -1132,20 +1610,23 @@ localUpdate msg localModel globalModel =
     ChangeName newName -> ({localModel | name = newName},Cmd.none,Cmd.none)
     KeyBoard n -> (if n /= Empty then {localModel | openKeyboard = True} else {localModel | openKeyboard = False},Cmd.none,Cmd.none)
     Input x -> (if x == "Back" then {localModel | name = (String.dropRight 1 localModel.name)} else if x /= "Back" && x /= "Down" then {localModel | name = localModel.name ++ x} else {localModel | name = localModel.name},if x == "Down" then newMsg <| KeyBoard Empty else Cmd.none,Cmd.none)
-
+    AddCheese -> ({localModel | pizza = (setCheese localModel.pizza True)}, Cmd.none,Cmd.none)
 -- I think this is useless it isn't called anywhere 
 updateTshapePos tshape newpt =
     case tshape of
       Shape topping pt -> Shape topping newpt
+      
+setCheese : Pizza -> Bool -> Pizza
+setCheese pizza bool = {pizza | cheese = bool}
       
 globalUpdate : GlobalMsg -> GlobalModel -> (GlobalModel, Cmd GlobalMsg, Cmd LocalMsg)
 globalUpdate msg globalModel =
     case msg of
         TimeUp -> (globalModel, Cmd.none, Cmd.none)
         Done -> (globalModel, Cmd.none, Cmd.none)
-        NewTopping a -> ({globalModel | rando = globalModel.rando ++ [a]}, Cmd.none, Cmd.none)
+        NewTopping a -> ({globalModel | rando = a}, Cmd.none, Cmd.none)
         GetNewTopping -> (globalModel,getNewTopping, Cmd.none)
-        LevelUp -> ({globalModel | level = if (Basics.modBy globalModel.level 2) == 0 then 3 else 2, alottedTime = globalModel.alottedTime - 15, toppings = []}, Cmd.none, Cmd.none)
+        LevelUp -> ({globalModel | level = (if (Basics.modBy globalModel.level 2) == 0 then 3 else 2), alottedTime = if globalModel.alottedTime >= 30 then globalModel.alottedTime - 15 else 30, toppings = []}, Cmd.none, Cmd.none)
         PlayerJoin player ->
           ({ globalModel | 
                 gameState = 
@@ -1159,6 +1640,10 @@ globalUpdate msg globalModel =
                   case player of
                     PlayerOne -> PlayerOneLeft
                     PlayerTwo -> PlayerTwoLeft
+               ,rando = []
+               , level = 1
+               ,alottedTime = 135
+               ,toppings = []
            }, Cmd.none, Cmd.none )
         StartGame st ->
           ( { globalModel | 
@@ -1168,6 +1653,7 @@ globalUpdate msg globalModel =
            )
         UpdateShape topping pt -> ({globalModel| toppings = (Shape topping pt)::globalModel.toppings}, Cmd.none, Cmd.none)
         UpdateTShape tshape new_pt -> ({globalModel| toppings = (updateTShape globalModel.toppings tshape new_pt)}, Cmd.none, Cmd.none)
+        AddCheeseG p -> (if p == PlayerOne then {globalModel | p1Cheese = True} else {globalModel | p2Cheese = True}, Cmd.none, newMsg <| AddCheese)
 initLocal : (LocalModel, Cmd LocalMsg)
 initLocal = ({time = 0
              , stime = 0
@@ -1182,7 +1668,8 @@ initLocal = ({time = 0
              , crustColour = crustColourDefault
              , toppings2 = []
              , name = "Player"
-             ,openKeyboard = False}, Cmd.none)
+             ,openKeyboard = False
+             ,pizza = startPizza}, Cmd.none)
                
 
 initGlobal : (GlobalModel, Cmd GlobalMsg)
@@ -1190,7 +1677,9 @@ initGlobal = ({rando = []
               , level = 1
               ,alottedTime = 135
               ,gameState = NoPlayersJoined
-              , toppings = []}, Cmd.none)
+              , toppings = []
+              , p1Cheese = False
+              , p2Cheese = False}, Cmd.none)
 
 
 -- Your local subscriptions go here
@@ -1275,7 +1764,7 @@ pizza3 = group[circle 30 |> filled crustColourDefault |> move(0,0)
 hintButton = group[circle 10 |> filled toppingPlaceBlueDefault |> addOutline (solid 1) black |> move(0,0)
             ,circle 4 |> outlined (solid 1) black |> move(-3,3)
             ,rect 1 8 |> filled black |> rotate (degrees 45) |> move(3,-3)
-            ] |> scale 0.7
+            ] |> scale 0.7 |> notifyTap(LocalMsg <| Go2HintScreen)
             
 receipt = curve (-17.17,59.004) [Pull (-17.17,1.5609) (-17.17,-55.88),Pull (-14.82,-54.16) (-12.48,-52.44),Pull (-9.834,-54.00) (-7.180,-55.57),Pull (-4.839,-54.16) (-2.497,-52.76),Pull (0.1560,-54.16) (2.8097,-55.57),Pull (5.3073,-54.00) (7.8048,-52.44),Pull (10.146,-53.85) (12.487,-55.25),Pull (15.141,-53.85) (17.795,-52.44),Pull (20.136,-53.85) (22.478,-55.25),Pull (24.975,-53.85) (27.473,-52.44),Pull (29.970,-53.85) (32.468,-55.25),Pull (34.965,-53.85) (37.463,-52.44),Pull (39.960,-54.00) (42.458,-55.57),Pull (44.956,-54.32) (47.453,-53.07),Pull (49.795,-54.16) (52.136,-55.25),Pull (52.136,1.8731) (52.136,59.004),Pull (17.482,59.004) (-17.17,59.004)] |> filled receiptBeige |> addOutline (solid 2) black
 

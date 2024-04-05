@@ -37,6 +37,7 @@ type MouseState = Waiting
 type OverlayState = MenuScreen
                    | Settings
                    | Quit
+                   | Hint
                    | None
                   
 
@@ -67,6 +68,7 @@ type LocalMsg
           | Go2Singleplayer Player
           | Go2MenuScreen
           | Go2Settings
+          | Go2HintScreen
           | Go2NextRound
           | LetGo
           | NewPos (Float,Float)
@@ -84,6 +86,7 @@ type LocalMsg
           | ChangeName String
           | KeyBoard Target
           | Input String
+          | AddCheese
 
 
 type alias LocalModel = {time : Float
@@ -99,13 +102,14 @@ type alias LocalModel = {time : Float
                          , otime : Float
                          , toppings2 : List(TShapes)
                          , name : String
-                         ,openKeyboard : Bool}
+                         ,openKeyboard : Bool
+                         ,pizza : Pizza}
                          
 
 type GlobalMsg
     = TimeUp
     | Done
-    | NewTopping Int
+    | NewTopping (List Int)
     | GetNewTopping
     | LevelUp
     | PlayerJoin Player
@@ -113,12 +117,16 @@ type GlobalMsg
     | StartGame LocalGameState
     | UpdateShape PossibleToppings (Float, Float) -- Shape = topping, NOT TShape
     | UpdateTShape TShapes (Float,Float)
+    | AddCheeseG Player
 
 type alias GlobalModel = {gameState : GameState
                          ,level : Int
                          , rando : List Int
                          , alottedTime : Float
-                         , toppings : List(TShapes)}
+                         , toppings : List(TShapes)
+                         , p1Cheese : Bool
+                         , p2Cheese : Bool
+                         }
     
 
 -- TShapes are the toppings with x,y coordinates
