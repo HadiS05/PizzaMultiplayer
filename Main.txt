@@ -83,12 +83,13 @@ myShapes localModel globalModel =
                                               acc_time = localModel.time - localModel.stime
                                               totalTime = globalModel.alottedTime - 15
                                               remainingTime = globalModel.alottedTime - acc_time
+                                              progressTime = totalTime - remainingTime
                                               names = Dict.fromList [("PlayerOne",localModel.name), ("PlayerTwo", localModel.name)]    
                                            in
                                               case localGameState of
                                                 MultiPlayer -> if acc_time <= globalModel.alottedTime && acc_time >= 15 then 
                                                                 [background localModel
-                                                                , bell
+                                                                , bell |> notifyTap (LocalMsg <| Bell progressTime)
                                                                 , if globalModel.p1Cheese then addCheese True localModel globalModel |> move(60,0) else addCheese False localModel globalModel |> move(60,0)
                                                                 , if globalModel.p2Cheese then addCheese True localModel globalModel |> move(-60,0) else addCheese False localModel globalModel |> move(-60,0)
                                                                 , if player == PlayerOne then
@@ -114,7 +115,7 @@ myShapes localModel globalModel =
                                                                   else group []] |> group
                                                               else if acc_time < 15 then
                                                                   [background localModel
-                                                                  , bell
+                                                                  , bell |> notifyTap (LocalMsg <| Bell progressTime)
                                                                   , if globalModel.p1Cheese then addCheese True localModel globalModel |> move(60,0) else addCheese False localModel globalModel |> move(60,0)
                                                                   , if globalModel.p2Cheese then addCheese True localModel globalModel |> move(-60,0) else addCheese False localModel globalModel |> move(-60,0)
                                                                   , toppingTable localModel |> move(0,-2)
@@ -131,12 +132,13 @@ myShapes localModel globalModel =
                                                                        else group []
                                                                     else group []] |> group
                                                                 else 
-                                                                  losingScreen
+                                                                  timeOut
                                                                   --start of single player
                                                 SinglePlayer -> if acc_time <= globalModel.alottedTime && acc_time >= 15 then 
                                                                 [background localModel
-                                                                , bell
-                                                                , if globalModel.p1Cheese || globalModel.p2Cheese then addCheese True localModel globalModel |> move(0,-2) else addCheese True localModel globalModel |> move(0,-2)
+                                                                , bell |> notifyTap (LocalMsg <| Bell progressTime)
+                                                                , attemptsLeft localModel
+                                                                , if globalModel.p1Cheese || globalModel.p2Cheese then addCheese True localModel globalModel |> move(0,-2) else addCheese False localModel globalModel |> move(0,-2)
                                                                 , toppingTable localModel |> move(-60,0)
                                                                 , skeletonEnv localModel
                                                                 , (text <| ((String.fromInt <| truncate remainingTime) ++ " sec.")) |> centered |> bold |> filled (if acc_time >= globalModel.alottedTime - 10 then red else black) |> scale 0.8 |> move(65,-10)
@@ -149,11 +151,13 @@ myShapes localModel globalModel =
                                                                          else 
                                                                               order localModel globalModel |> makeTransparent (0.2^(localModel.time-(13+localModel.stime)))
                                                                     else group []
-                                                                  else group []] |> group
+                                                                  else group []
+                                                                ] |> group
                                                               else if acc_time < 15 then
                                                                   [background localModel
-                                                                  , bell
-                                                                  , if globalModel.p1Cheese || globalModel.p2Cheese then addCheese True localModel globalModel |> move(0,-2) else addCheese True localModel globalModel |> move(0,-2)
+                                                                  , bell |> notifyTap (LocalMsg <| Bell progressTime)
+                                                                  , attemptsLeft localModel
+                                                                  , if globalModel.p1Cheese || globalModel.p2Cheese then addCheese True localModel globalModel |> move(0,-2) else addCheese False localModel globalModel |> move(0,-2)
                                                                   , toppingTable localModel |> move(-60,0)
                                                                   , skeletonEnv localModel
                                                                   , text ((String.fromInt (truncate <| totalTime)) ++ " sec.") |> centered |> bold |> filled black |> scale 0.8 |> move(65,-10)
@@ -166,10 +170,14 @@ myShapes localModel globalModel =
                                                                            else 
                                                                                 order localModel globalModel |> makeTransparent (0.2^(localModel.time-(13+localModel.stime)))
                                                                        else group []
-                                                                    else group []] |> group
+                                                                    else group []
+                                                                  ] |> group
+
                                                                 else 
-                                                                  losingScreen 
+                                                                  if (compare_S1 localModel globalModel orderPizza) then winnerScreen localModel else timeOut
                                                                   --end of single player
+    WinningScreen -> group [winnerScreen localModel]
+    LosingScreen -> timeOut
   ,(menuIcon localModel) |> move(-80,50)
   ,(settingsButton localModel) |> scale 0.8 |> move(120,18)]
       
@@ -207,26 +215,28 @@ myShapes localModel globalModel =
                |> notifyMouseUp (LocalMsg(LetGo))
              --  |> notifyLeave (LocalMsg(LetGo))
                |> case localModel.localState of
-                     AtMainMenu -> notifyMouseUp (GlobalMsg(UpdateShape topping pt))
-                     InLobby _ -> notifyMouseUp (GlobalMsg(UpdateShape topping pt))
-                     PlayingGame p _ -> case p of
-                                           MultiPlayer -> notifyMouseUp (GlobalMsg(UpdateShape topping pt))
+                     AtMainMenu -> notifyMouseUp (GlobalMsg(UpdateShape topping pt Nobody))
+                     InLobby _ -> notifyMouseUp (GlobalMsg(UpdateShape topping pt Nobody))
+                     PlayingGame p player -> case p of
+                                           MultiPlayer -> notifyMouseUp (GlobalMsg(UpdateShape topping pt player))
                                            SinglePlayer -> notifyMouseUp (LocalMsg(UpdateShape2 topping pt)) --THIS LINE
                                                        --error is here for single player. If I change to the multiplayer line it works fine
                                                        --but then the toppings show for everyone instead of just the one player
+                     WinningScreen -> notifyMouseUp (GlobalMsg(UpdateShape topping pt Nobody))
+                     LosingScreen -> notifyMouseUp (GlobalMsg(UpdateShape topping pt Nobody))
              ,
             case localModel.localState of
               PlayingGame MultiPlayer p ->  case globalModel.level of
                                                1 -> snapping1 topping (toppingToTshape topping pt) 1 p
-                                               2 -> snapping2 topping (toppingToTshape topping pt) 1
-                                               3 -> snapping3 topping (toppingToTshape topping pt) 1
-                                               _ -> snapping3 topping (toppingToTshape topping pt) 1
+                                               2 -> snapping2 topping (toppingToTshape topping pt) 1 p
+                                               3 -> snapping3 topping (toppingToTshape topping pt) 1 p
+                                               _ -> snapping3 topping (toppingToTshape topping pt) 1 p
                                                
-              PlayingGame SinglePlayer _ -> case globalModel.level of
-                                               1 -> snappingS1 topping (toppingToTshape topping pt) 1
-                                               2 -> snappingS2 topping (toppingToTshape topping pt) 1
-                                               3 -> snappingS3 topping (toppingToTshape topping pt) 1
-                                               _ -> snappingS3 topping (toppingToTshape topping pt) 1
+              PlayingGame SinglePlayer p -> case globalModel.level of
+                                               1 -> snappingS1 topping (toppingToTshape topping pt) 1 p
+                                               2 -> snappingS2 topping (toppingToTshape topping pt) 1 p
+                                               3 -> snappingS3 topping (toppingToTshape topping pt) 1 p
+                                               _ -> snappingS3 topping (toppingToTshape topping pt) 1 p
               
               _ -> []|>group
            ] -- !!!!!!!!!!!!!!!!!!!!!!!!!  
@@ -236,24 +246,26 @@ myShapes localModel globalModel =
                   |> notifyMouseUp (LocalMsg(LetGo))
                 --  |> notifyLeave (LocalMsg(LetGo))
                   |> case localModel.localState of
-                        AtMainMenu -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
-                        InLobby _ -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
-                        PlayingGame p _ -> case p of
-                                              MultiPlayer -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt))
+                        AtMainMenu -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt Nobody))
+                        InLobby _ -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt Nobody))
+                        PlayingGame p player -> case p of
+                                              MultiPlayer -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt player))
                                               SinglePlayer -> notifyMouseUp (LocalMsg(UpdateTShape2 tshape pt))
+                        WinningScreen -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt Nobody))
+                        LosingScreen -> notifyMouseUp (GlobalMsg(UpdateTShape tshape pt Nobody))
                ,
               case localModel.localState of
                 PlayingGame MultiPlayer p ->  case globalModel.level of
                                                  1 -> snapping1 (tshapeToTopping tshape) tshape 2 p
-                                                 2 -> snapping2 (tshapeToTopping tshape) tshape 2
-                                                 3 -> snapping3 (tshapeToTopping tshape) tshape 2
-                                                 _ -> snapping3 (tshapeToTopping tshape) tshape 2
+                                                 2 -> snapping2 (tshapeToTopping tshape) tshape 2 p
+                                                 3 -> snapping3 (tshapeToTopping tshape) tshape 2 p
+                                                 _ -> snapping3 (tshapeToTopping tshape) tshape 2 p
                                                
-                PlayingGame SinglePlayer _ -> case globalModel.level of
-                                                 1 -> snappingS1 (tshapeToTopping tshape) tshape 2
-                                                 2 -> snappingS2 (tshapeToTopping tshape) tshape 2
-                                                 3 -> snappingS3 (tshapeToTopping tshape) tshape 2
-                                                 _ -> snappingS3 (tshapeToTopping tshape) tshape 2
+                PlayingGame SinglePlayer p -> case globalModel.level of
+                                                 1 -> snappingS1 (tshapeToTopping tshape) tshape 2 p
+                                                 2 -> snappingS2 (tshapeToTopping tshape) tshape 2 p
+                                                 3 -> snappingS3 (tshapeToTopping tshape) tshape 2 p
+                                                 _ -> snappingS3 (tshapeToTopping tshape) tshape 2 p
               
                 _ -> []|>group              
               ]
@@ -300,7 +312,7 @@ myShapes localModel globalModel =
     
 
 
-snappingS3 topping tshape val =
+snappingS3 topping tshape val p =
   let
     output = case val of
                1 -> UpdateShape2 topping
@@ -308,45 +320,51 @@ snappingS3 topping tshape val =
                _ -> UpdateShape2 topping
   in
     group[
-    circle 7
+     circle 26
+       |> filled (rgba 255 0 0 0)
+       |> move (0,-2)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+    ,circle 7
       |> filled (rgba 255 255 0 0.6)
       |> move (0,-2)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (LocalMsg(output (0,-2)))
+      |> notifyMouseUp (LocalMsg(output (0,0)))
      ,
     circle 7
       |> filled (rgba 255 255 0 0.6)
       |> move (0,-17)    
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (LocalMsg(output (0,-17)))
+      |> notifyMouseUp (LocalMsg(output (0,-15)))
      ,
     circle 7
       |> filled (rgba 255 255 0 0.6)
       |> move (0,13)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (LocalMsg(output (0,13)))
+      |> notifyMouseUp (LocalMsg(output (0,15)))
      ,
     circle 7
       |> filled (rgba 255 255 0 0.6)
       |> move (15,-2)    
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (LocalMsg(output (15,-2)))
+      |> notifyMouseUp (LocalMsg(output (15,0)))
      ,
     circle 7
       |> filled (rgba 255 255 0 0.6)
       |> move (-15,-2)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (LocalMsg(output (-15,-2)))
+      |> notifyMouseUp (LocalMsg(output (-15,0)))
     ]
 
 
 
-snappingS2 topping tshape val =
+snappingS2 topping tshape val p =
   let
     output = case val of
                1 -> UpdateShape2 topping
@@ -354,46 +372,88 @@ snappingS2 topping tshape val =
                _ -> UpdateShape2 topping
   in
    group[
-   circle 7
+   circle 26
+     |> filled (rgba 255 0 0 0)
+     |> move (0,-2)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+   ,circle 7
      |> filled (rgba 0 255 0 0.6)
      |> move (0,-2)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (0,-2)))
+     |> notifyMouseUp (LocalMsg(output (0,0)))
     ,
    circle 7
      |> filled (rgba 0 255 0 0.6)
      |> move (10,8)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (10,8)))
+     |> notifyMouseUp (LocalMsg(output (10,10)))
     ,
    circle 7
      |> filled (rgba 0 255 0 0.6)
      |> move (-10,8)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (-10,8)))
+     |> notifyMouseUp (LocalMsg(output (-10,10)))
     ,
    circle 7
      |> filled (rgba 0 255 0 0.6)
      |> move (10,-12)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (10,-12)))
+     |> notifyMouseUp (LocalMsg(output (10,-10)))
     ,
    circle 7
      |> filled (rgba 0 255 0 0.6)
      |> move (-10,-12)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (-10,-12)))
+     |> notifyMouseUp (LocalMsg(output (-10,-10)))
    ]
 
 
+compare_S1 : LocalModel -> GlobalModel -> Pizza -> Bool
+compare_S1 localModel globalModel orderp = 
+  
+  let
+    {cheese, topping} = orderp
+    toppingList = compareHelperRecursive localModel.toppings2
+  in
+    if globalModel.p1Cheese || globalModel.p2Cheese then
+       case topping of
+         x::xs ->
+           case (List.filter (\y -> y == x) toppingList /= []) of 
+             True ->
+               let 
+                 p = {cheese = True, topping = xs}
+               in
+                 compare_S1 localModel globalModel p
+             False -> False
+         [] -> True
+    else
+      False
+   
+   
+   
+compare_helper : TShapes -> (PossibleToppings, (Float, Float))
+compare_helper tshape = 
+  case tshape of
+    Shape t point -> (t, point)
+
+       
+    
+compareHelperRecursive : List (TShapes) -> List (PossibleToppings,(Float,Float))
+compareHelperRecursive ls = 
+    case ls of
+      x::xs -> case x of
+                 Shape t point -> [(t,point)] ++ compareHelperRecursive xs
+      [] -> []
 
   
-snappingS1 topping tshape val =
+snappingS1 topping tshape val p =
   let
     output = case val of
                1 -> UpdateShape2 topping
@@ -401,33 +461,39 @@ snappingS1 topping tshape val =
                _ -> UpdateShape2 topping
   in
    group[
-   circle 7
+   circle 26
+     |> filled (rgba 255 0 0 0)
+     |> move (0,-2)
+     |> notifyMouseMoveAt (MovePos >> LocalMsg)
+     |> notifyMouseUp (LocalMsg(LetGo))
+     |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+   ,circle 7
      |> filled (rgba 0 0 255 0.6)
      |> move (10,8)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (10,8)))
+     |> notifyMouseUp (LocalMsg(output (10,10)))
    ,
    circle 7
      |> filled (rgba 0 0 255 0.6)
      |> move (-10,8)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (-10,8)))
+     |> notifyMouseUp (LocalMsg(output (-10,10)))
    ,
    circle 7
      |> filled (rgba 0 0 255 0.6)
      |> move (10,-12)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (10,-12)))
+     |> notifyMouseUp (LocalMsg(output (10,-10)))
    ,
    circle 7
      |> filled (rgba 0 0 255 0.6)
      |> move (-10,-12)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
-     |> notifyMouseUp (LocalMsg(output (-10,-12)))
+     |> notifyMouseUp (LocalMsg(output (-10,-10)))
    ]
 
 
@@ -435,7 +501,7 @@ snappingS1 topping tshape val =
 
 
 
-snapping3 topping tshape val=
+snapping3 topping tshape val p=
   let
     output = case val of
                1 -> UpdateShape topping
@@ -444,76 +510,87 @@ snapping3 topping tshape val=
   in
    group[
    --left3
-     circle 7
+     circle 26
+       |> filled (rgba 255 0 0 0)
+       |> move (-60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+     ,circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (-60,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-60,0)))
+       |> notifyMouseUp (GlobalMsg(output (-60,0) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (-60,15)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-60,15)))
+       |> notifyMouseUp (GlobalMsg(output (-60,15) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (-60,-15)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-60,-15)))
+       |> notifyMouseUp (GlobalMsg(output (-60,-15) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (-75,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-75,0)))
+       |> notifyMouseUp (GlobalMsg(output (-75,0) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (-45,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-45,0)))
+       |> notifyMouseUp (GlobalMsg(output (-45,0) p))
     --right
-     ,
-     circle 7
+     , circle 26
+         |> filled (rgba 255 0 0 0)
+         |> move (60,0)
+         |> notifyMouseMoveAt (MovePos >> LocalMsg)
+         |> notifyMouseUp (LocalMsg(LetGo))
+         |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+     ,circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (60,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (60,0)))
+       |> notifyMouseUp (GlobalMsg(output (60,0) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (60,15)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (60,15)))
+       |> notifyMouseUp (GlobalMsg(output (60,15) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (60,-15)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (60,-15)))
+       |> notifyMouseUp (GlobalMsg(output (60,-15) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (75,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (75,0)))
+       |> notifyMouseUp (GlobalMsg(output (75,0) p))
      ,
      circle 7
        |> filled (rgba 255 255 0 0.7)
        |> move (45,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (45,0)))
+       |> notifyMouseUp (GlobalMsg(output (45,0) p))
      
    ]  
   
@@ -521,85 +598,95 @@ snapping3 topping tshape val=
   
   
   
-snapping2 topping tshape val=
+snapping2 topping tshape val p=
   let
     output = case val of
-               1 -> UpdateShape topping
-               2 -> UpdateTShape tshape
-               _ -> UpdateShape topping
+               1 -> UpdateShape topping 
+               2 -> UpdateTShape tshape 
+               _ -> UpdateShape topping 
   in
    group[
    --left
-     circle 7
+     circle 26
+       |> filled (rgba 255 0 0 0)
+       |> move (-60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+     ,circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (-60,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-60,0)))
+       |> notifyMouseUp (GlobalMsg(output (-60,0) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (-50,10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-50,10)))
+       |> notifyMouseUp (GlobalMsg(output (-50,10) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (-70,10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-70,10)))
+       |> notifyMouseUp (GlobalMsg(output (-70,10) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (-50,-10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-50,-10)))
-     ,
-     circle 7
+       |> notifyMouseUp (GlobalMsg(output (-50,-10) p))
+     ,circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (-70,-10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (-70,-10)))
+       |> notifyMouseUp (GlobalMsg(output (-70,-10) p))
     --right
-     ,
-     circle 7
+     ,circle 26
+       |> filled (rgba 255 0 0 0)
+       |> move (60,0)
+       |> notifyMouseMoveAt (MovePos >> LocalMsg)
+       |> notifyMouseUp (LocalMsg(LetGo))
+       |> if topping == Cheese then notifyMouseUp (GlobalMsg(AddCheeseG p)) else identity
+     ,circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move(60,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (60,0)))
+       |> notifyMouseUp (GlobalMsg(output (60,0) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (70,10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (70,10)))
+       |> notifyMouseUp (GlobalMsg(output (70,10) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (50,10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (50,10)))
+       |> notifyMouseUp (GlobalMsg(output (50,10) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (70,-10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (70,-10)))
+       |> notifyMouseUp (GlobalMsg(output (70,-10) p))
      ,
      circle 7
        |> filled (rgba 0 255 0 0.8)
        |> move (50,-10)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
-       |> notifyMouseUp (GlobalMsg(output (50,-10)))
+       |> notifyMouseUp (GlobalMsg(output (50,-10) p))
    
    ]
 
@@ -616,7 +703,7 @@ snapping1 topping tshape val p =
    group[
    --left pizza
    circle 26
-     |> filled sauceRedDefault
+     |> filled (rgba 255 0 0 0)
      |> move (-60,0)
      |> notifyMouseMoveAt (MovePos >> LocalMsg)
      |> notifyMouseUp (LocalMsg(LetGo))
@@ -626,21 +713,21 @@ snapping1 topping tshape val p =
       |> move (-70,10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (-70,10)))
+      |> notifyMouseUp (GlobalMsg(output (-70,10) p))
       
     ,circle 7  
       |> filled (rgba 0 0 255 0.5)
       |> move (-50,10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (-50,10)))
+      |> notifyMouseUp (GlobalMsg(output (-50,10) p))
      ,
     circle 7  
       |> filled (rgba 0 0 255 0.5)
       |> move (-70,-10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (-70,-10)))
+      |> notifyMouseUp (GlobalMsg(output (-70,-10) p))
       
      ,
     circle 7  
@@ -648,12 +735,12 @@ snapping1 topping tshape val p =
       |> move (-50,-10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (-50,-10)))
+      |> notifyMouseUp (GlobalMsg(output (-50,-10) p))
       
       
      --right pizza
     ,circle 26
-       |> filled sauceRedDefault
+       |> filled (rgba 255 0 0 0)
        |> move (60,0)
        |> notifyMouseMoveAt (MovePos >> LocalMsg)
        |> notifyMouseUp (LocalMsg(LetGo))
@@ -663,7 +750,7 @@ snapping1 topping tshape val p =
       |> move (70,10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (70,10)))
+      |> notifyMouseUp (GlobalMsg(output (70,10) p))
       
      ,
     circle 7  
@@ -671,7 +758,7 @@ snapping1 topping tshape val p =
       |> move (50,10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (50,10)))
+      |> notifyMouseUp (GlobalMsg(output (50,10) p))
       
      ,
     circle 7  
@@ -679,7 +766,7 @@ snapping1 topping tshape val p =
       |> move (70,-10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (70,-10)))
+      |> notifyMouseUp (GlobalMsg(output (70,-10) p))
       
      ,
     circle 7  
@@ -687,7 +774,7 @@ snapping1 topping tshape val p =
       |> move (50,-10)
       |> notifyMouseMoveAt (MovePos >> LocalMsg)
       |> notifyMouseUp (LocalMsg(LetGo))
-      |> notifyMouseUp (GlobalMsg(output (50,-10)))
+      |> notifyMouseUp (GlobalMsg(output (50,-10) p))
       
    ] 
 
@@ -763,6 +850,8 @@ skeletonEnv localModel = case localModel.localState of
                                               ,(settingsButton localModel) |> scale 0.8 |> move(120,18)
                                               ,(timerIcon localModel) |> move(65,7)
                                               ]
+                            WinningScreen -> group []
+                            LosingScreen -> group []
 
 keyBoard = group[roundedRect 190 90 5 |> filled textColourBeige |> addOutline (solid 1) black
                 ,[[circle 9 |> filled bgRed |> move(-80.5,15) |> addOutline (solid 1) black
@@ -854,7 +943,7 @@ keyBoard = group[roundedRect 190 90 5 |> filled textColourBeige |> addOutline (s
                 ]
 bell = group [curve (-39.62,38.013) [Pull (-40.37,37.691) (-41.12,37.369),Pull (-41.34,37.154) (-41.55,36.939),Pull (-41.77,36.510) (-41.98,36.080),Pull (-41.98,35.543) (-41.98,35.006),Pull (-41.87,34.147) (-41.77,33.288),Pull (-41.66,33.181) (-41.55,33.073),Pull (-43.81,32.859) (-46.06,32.644),Pull (-46.71,32.536) (-47.35,32.429),Pull (-48.10,32.214) (-48.85,32),Pull (-50.79,31.248) (-52.72,30.496),Pull (-54.22,29.530) (-55.73,28.563),Pull (-56.59,27.704) (-57.44,26.845),Pull (-58.20,25.986) (-58.95,25.127),Pull (-59.81,23.731) (-60.67,22.335),Pull (-61.20,21.154) (-61.74,19.973),Pull (-62.06,18.791) (-62.38,17.610),Pull (-62.60,16.214) (-62.81,14.818),Pull (-62.81,14.389) (-62.81,13.959),Pull (-62.92,13.637) (-63.03,13.315),Pull (-63.24,12.563) (-63.46,11.812),Pull (-63.57,10.738) (-63.67,9.6644),Pull (-38.65,9.6644) (-13.63,9.6644),Pull (-13.74,10.416) (-13.85,11.167),Pull (-14.06,11.704) (-14.28,12.241),Pull (-14.38,12.885) (-14.49,13.530),Pull (-14.71,13.852) (-14.92,14.174),Pull (-15.03,15.570) (-15.14,16.966),Pull (-15.24,17.288) (-15.35,17.610),Pull (-15.46,18.040) (-15.57,18.469),Pull (-16.10,20.187) (-16.64,21.906),Pull (-17.18,22.765) (-17.71,23.624),Pull (-18.89,25.234) (-20.08,26.845),Pull (-20.40,27.275) (-20.72,27.704),Pull (-21.26,28.134) (-21.79,28.563),Pull (-22.33,29.100) (-22.87,29.637),Pull (-23.73,30.067) (-24.59,30.496),Pull (-25.55,31.033) (-26.52,31.570),Pull (-27.59,31.892) (-28.67,32.214),Pull (-29.74,32.429) (-30.81,32.644),Pull (-32.53,32.751) (-34.25,32.859),Pull (-35.00,32.859) (-35.75,32.859),Pull (-35.65,33.395) (-35.54,33.932),Pull (-35.43,34.577) (-35.32,35.221),Pull (-35.54,35.973) (-35.75,36.724),Pull (-36.08,37.154) (-36.40,37.583),Pull (-37.26,37.906) (-38.12,38.228),Pull (-38.76,38.228) (-39.40,38.228),Pull (-39.51,38.228) (-39.62,38.228)] |> filled (rgb 186 189 194) |> addOutline (solid 2) black
              ,curve (-40.91,8.5906) [Pull (-51.43,8.5906) (-61.95,8.5906),Pull (-62.17,8.4832) (-62.38,8.3758),Pull (-62.71,8.2684) (-63.03,8.1610),Pull (-63.35,7.7315) (-63.67,7.3020),Pull (-64.42,6.5503) (-65.18,5.7986),Pull (-65.61,5.0469) (-66.04,4.2953),Pull (-66.25,3.7583) (-66.46,3.2214),Pull (-66.57,2.7919) (-66.68,2.3624),Pull (-66.68,0.7516) (-66.68,-0.859),Pull (-66.57,-0.966) (-66.46,-1.073),Pull (-66.25,-1.181) (-66.04,-1.288),Pull (-38.76,-1.288) (-11.48,-1.288),Pull (-11.16,-1.181) (-10.84,-1.073),Pull (-10.84,-0.644) (-10.84,-0.214),Pull (-10.95,1.2885) (-11.06,2.7919),Pull (-11.06,3.3288) (-11.06,3.8657),Pull (-11.38,4.4026) (-11.70,4.9395),Pull (-12.02,5.5838) (-12.34,6.2281),Pull (-12.88,6.8724) (-13.42,7.5167),Pull (-14.06,7.9463) (-14.71,8.3758),Pull (-15.14,8.4832) (-15.57,8.5906),Pull (-15.78,8.5906) (-16,8.5906),Pull (-26.30,8.5906) (-36.61,8.5906),Pull (-38.76,8.5906) (-40.91,8.5906)] |> filled (rgb 116 116 116) |> addOutline (solid 2) black
-             ] |> scale 0.3 |> move(11,-60) |> notifyTap (GlobalMsg <| Done)
+             ] |> scale 0.3 |> move(11,-60) 
 background localModel = rect 1000 1000 |> filled localModel.bgColour |> move (0,0)
 settingsButton localModel = group[curve (-62.60,49.825) [Pull (-62.92,48.214) (-63.24,46.604),Pull (-63.35,46.496) (-63.46,46.389),Pull (-63.67,46.174) (-63.89,45.959),Pull (-64.21,45.852) (-64.53,45.744),Pull (-65.93,46.281) (-67.32,46.818),Pull (-67.65,46.711) (-67.97,46.604),Pull (-68.29,46.174) (-68.61,45.744),Pull (-69.26,44.456) (-69.90,43.167),Pull (-69.90,42.953) (-69.90,42.738),Pull (-69.79,42.523) (-69.69,42.308),Pull (-69.26,41.986) (-68.83,41.664),Pull (-68.18,41.127) (-67.54,40.590),Pull (-67.54,40.375) (-67.54,40.161),Pull (-67.54,39.946) (-67.54,39.731),Pull (-67.54,39.624) (-67.54,39.516),Pull (-67.54,39.409) (-67.54,39.302),Pull (-67.54,39.194) (-67.54,39.087),Pull (-68.72,38.013) (-69.90,36.939),Pull (-69.90,36.724) (-69.90,36.510),Pull (-69.90,36.402) (-69.90,36.295),Pull (-69.79,36.080) (-69.69,35.865),Pull (-69.58,35.651) (-69.47,35.436),Pull (-68.61,34.147) (-67.75,32.859),Pull (-67.65,32.859) (-67.54,32.859),Pull (-67.43,32.859) (-67.32,32.859),Pull (-65.93,33.288) (-64.53,33.718),Pull (-64.42,33.718) (-64.32,33.718),Pull (-64,33.610) (-63.67,33.503),Pull (-63.57,33.395) (-63.46,33.288),Pull (-63.35,33.073) (-63.24,32.859),Pull (-63.14,32.536) (-63.03,32.214),Pull (-62.81,31.248) (-62.60,30.281),Pull (-62.60,30.067) (-62.60,29.852),Pull (-62.49,29.852) (-62.38,29.852),Pull (-62.28,29.744) (-62.17,29.637),Pull (-61.85,29.637) (-61.53,29.637),Pull (-59.59,29.744) (-57.66,29.852),Pull (-57.23,31.570) (-56.80,33.288),Pull (-56.48,33.503) (-56.16,33.718),Pull (-55.94,33.825) (-55.73,33.932),Pull (-54.33,33.395) (-52.93,32.859),Pull (-51.65,34.899) (-50.36,36.939),Pull (-50.57,37.369) (-50.79,37.798),Pull (-51.75,38.657) (-52.72,39.516),Pull (-52.72,39.946) (-52.72,40.375),Pull (-52.40,40.697) (-52.08,41.020),Pull (-51.22,41.879) (-50.36,42.738),Pull (-51.54,44.885) (-52.72,47.033),Pull (-54.33,46.496) (-55.94,45.959),Pull (-56.16,45.959) (-56.37,45.959),Pull (-56.69,46.174) (-57.02,46.389),Pull (-57.34,48) (-57.66,49.610),Pull (-57.66,49.718) (-57.66,49.825),Pull (-60.02,49.825) (-62.38,49.825)] |> filled localModel.buttonColour
                       ,circle 2 |> filled localModel.bgColour |> scale 1.7 |> move(-60,40)
@@ -943,7 +1032,7 @@ menuPage globalModel localModel =
       line (-40,35) (40,35)
         |> outlined (solid 1) black
       ,
-      text "Best Time: 0 seconds"
+      text ("Best Time: " ++ (String.fromInt (localModel.bestTime |> truncate)) ++ " seconds")
         |> filled black
         |> scale 0.7
         |> move (-35,20)
@@ -1289,13 +1378,19 @@ leaderboardPage =
       |> move (30,25)
   ]
 
-losingScreen =
+toPos attempts = 20 * attempts - 20
+attemptsLeft localModel = [List.map ( \ idx -> (pizzaTray localModel) |> move (toPos (toFloat idx),45) )
+                            (List.range 1 localModel.attemptsLeft)
+                            |> group
+                          ,text "Attempts: " |> bold |> centered |> fixedwidth |>  filled black |> scale 0.6 |> move (-30,40)] |> group
+
+timeOut =
   group
   [
     rect 1080 1920 
       |> filled bgRed 
     ,
-    text "Time"
+    text "Game"
       |> filled textColourBeige
       |> scale 1.5
       |> move (-20,20)
@@ -1315,7 +1410,7 @@ losingScreen =
       |> scale 0.5
       |> move (0,-27)] |> group |> notifyTap (LocalMsg <| Go2NextRound) |> notifyTap (GlobalMsg <| LevelUp)
   ]
-  
+
 finalScreen =
   group
   [
@@ -1342,15 +1437,11 @@ finalScreen =
       |> move (-34,-29)  
   ]
   
-winnerScreen =
+winnerScreen localModel =
   group
   [
     rect 1080 1920 
-      |> filled bgRed
-    ,
-    roundedRect 80 17 4
-      |> filled textColourBeige
-      |> move (-3,-25)  
+      |> filled bgRed 
     ,
     text "Completed"
       |> filled textColourBeige
@@ -1362,15 +1453,17 @@ winnerScreen =
       |> scale 1.5
       |> move (-15,20)
     ,
-    text "0 Seconds"
+    text (String.fromInt (localModel.timeCompleted |> truncate) ++ " seconds!")
       |> filled textColourBeige
       |> scale 1.5
       |> move (-43,0)
-    ,
-    text "Next Round..."
-      |> filled bgRed
-      |> scale 1
-      |> move (-37,-28)
+    ,[roundedRect 80 17 4
+        |> filled textColourBeige
+        |> move (-3,-25) 
+     ,text "Next Round..."
+        |> filled bgRed
+        |> scale 1
+        |> move (-37,-28)] |> group |> notifyTap (LocalMsg <| Go2NextRound) |> notifyTap (GlobalMsg <| LevelUp)
   ]
 
 -- MODIFYING PIZZA ORDER:
@@ -1450,8 +1543,8 @@ generateToppings pizza globalModel =
       topping = case globalModel.level of 
                    1 -> {pizza | topping = [(shapeTopping1,(-10,10))
                                             ,(shapeTopping2,(10,10))
-                                            ,(shapeTopping3,(-10,-10))
-                                            ,(shapeTopping4,(10,-10))
+                                            ,(shapeTopping3,(-10,-10)) --change
+                                            ,(shapeTopping4,(10,-10)) -- change
                                             ]}
                                
                    2 -> {pizza | topping = [(shapeTopping1,(-10,10))
@@ -1510,7 +1603,7 @@ textOrder ls globalModel =
                   1 -> List.take 4 ls
                   2 -> ls
                   3 -> ls
-                  _ -> List.take 4 ls
+                  _ -> ls
       in
         case list of
           [] -> ""
@@ -1561,7 +1654,7 @@ localUpdate msg localModel globalModel =
   case msg of
     Types.Tick t _ -> ({ localModel | time = t }, Cmd.none, Cmd.none)
     Go2Singleplayer p -> ({localModel | stime = localModel.time, localState = PlayingGame SinglePlayer p}, Cmd.none, Cmd.none)
-    Go2NextRound -> ({localModel | stime = localModel.time, overlay = None, toppings2=[], pizza = (setCheese localModel.pizza False)}, Cmd.none, if localModel.localState /= AtMainMenu && localModel.localState /= InLobby PlayerOne && localModel.localState /= InLobby PlayerTwo then (newMsg <| StartGame (case localModel.localState of 
+    Go2NextRound -> ({localModel | stime = localModel.time, overlay = None, toppings2=[], pizza = (setCheese localModel.pizza False), attemptsLeft = 3}, Cmd.none, if localModel.localState /= AtMainMenu && localModel.localState /= InLobby PlayerOne && localModel.localState /= InLobby PlayerTwo then (newMsg <| StartGame (case localModel.localState of 
                                                                                                                                                                                                                                                                     PlayingGame st _ -> st
                                                                                                                                                                                                                                                                     _ -> SinglePlayer))
                                                                                                      else
@@ -1611,6 +1704,7 @@ localUpdate msg localModel globalModel =
     KeyBoard n -> (if n /= Empty then {localModel | openKeyboard = True} else {localModel | openKeyboard = False},Cmd.none,Cmd.none)
     Input x -> (if x == "Back" then {localModel | name = (String.dropRight 1 localModel.name)} else if x /= "Back" && x /= "Down" then {localModel | name = localModel.name ++ x} else {localModel | name = localModel.name},if x == "Down" then newMsg <| KeyBoard Empty else Cmd.none,Cmd.none)
     AddCheese -> ({localModel | pizza = (setCheese localModel.pizza True)}, Cmd.none,Cmd.none)
+    Bell acc_time -> (if (compare_S1 localModel globalModel (generateToppings orderPizza globalModel)) then {localModel | localState = WinningScreen, timeCompleted = acc_time, bestTime = if acc_time < localModel.bestTime then acc_time else localModel.bestTime} else if localModel.attemptsLeft /= 0 then {localModel | otime = acc_time, attemptsLeft = localModel.attemptsLeft - 1} else {localModel | localState = LosingScreen, timeCompleted = 0, otime = localModel.time}, Cmd.none, Cmd.none)
 -- I think this is useless it isn't called anywhere 
 updateTshapePos tshape newpt =
     case tshape of
@@ -1626,13 +1720,14 @@ globalUpdate msg globalModel =
         Done -> (globalModel, Cmd.none, Cmd.none)
         NewTopping a -> ({globalModel | rando = a}, Cmd.none, Cmd.none)
         GetNewTopping -> (globalModel,getNewTopping, Cmd.none)
-        LevelUp -> ({globalModel | level = (if (Basics.modBy globalModel.level 2) == 0 then 3 else 2), alottedTime = if globalModel.alottedTime >= 30 then globalModel.alottedTime - 15 else 30, toppings = []}, Cmd.none, Cmd.none)
+        LevelUp -> ({globalModel | level = (if (Basics.modBy globalModel.level 2) == 0 then 3 else 2), alottedTime = if globalModel.alottedTime >= 30 then globalModel.alottedTime - 15 else 30, toppings = [], p1Cheese = False, p2Cheese = False}, Cmd.none, Cmd.none)
         PlayerJoin player ->
           ({ globalModel | 
                 gameState = 
                   case player of
                     PlayerOne -> PlayerOneJoined
                     PlayerTwo -> PlayerTwoJoined
+                    Nobody -> NoPlayersJoined
            }, Cmd.none, Cmd.none )
         PlayerLeft player ->
           ({ globalModel | 
@@ -1640,6 +1735,7 @@ globalUpdate msg globalModel =
                   case player of
                     PlayerOne -> PlayerOneLeft
                     PlayerTwo -> PlayerTwoLeft
+                    Nobody -> PlayerOneLeft
                ,rando = []
                , level = 1
                ,alottedTime = 135
@@ -1651,8 +1747,8 @@ globalUpdate msg globalModel =
            }, Cmd.none
            , newMsg (LocalStart st)
            )
-        UpdateShape topping pt -> ({globalModel| toppings = (Shape topping pt)::globalModel.toppings}, Cmd.none, Cmd.none)
-        UpdateTShape tshape new_pt -> ({globalModel| toppings = (updateTShape globalModel.toppings tshape new_pt)}, Cmd.none, Cmd.none)
+        UpdateShape topping pt player -> ({globalModel| toppings = (Shape topping pt)::globalModel.toppings, p1Toppings = if player == PlayerOne then (Shape topping pt)::globalModel.p1Toppings else globalModel.p1Toppings, p2Toppings = if player == PlayerTwo then (Shape topping pt)::globalModel.p2Toppings else globalModel.p2Toppings}, Cmd.none, Cmd.none)
+        UpdateTShape tshape new_pt player -> ({globalModel| toppings = (updateTShape globalModel.toppings tshape new_pt), p1Toppings = if player == PlayerOne then (updateTShape globalModel.p1Toppings tshape new_pt) else globalModel.p1Toppings, p2Toppings = if player == PlayerTwo then (updateTShape globalModel.p2Toppings tshape new_pt) else globalModel.p2Toppings}, Cmd.none, Cmd.none)
         AddCheeseG p -> (if p == PlayerOne then {globalModel | p1Cheese = True} else {globalModel | p2Cheese = True}, Cmd.none, newMsg <| AddCheese)
 initLocal : (LocalModel, Cmd LocalMsg)
 initLocal = ({time = 0
@@ -1669,7 +1765,10 @@ initLocal = ({time = 0
              , toppings2 = []
              , name = "Player"
              ,openKeyboard = False
-             ,pizza = startPizza}, Cmd.none)
+             ,pizza = startPizza
+             ,timeCompleted = 0
+             ,bestTime = 120
+             , attemptsLeft = 3}, Cmd.none)
                
 
 initGlobal : (GlobalModel, Cmd GlobalMsg)
@@ -1678,6 +1777,8 @@ initGlobal = ({rando = []
               ,alottedTime = 135
               ,gameState = NoPlayersJoined
               , toppings = []
+              , p1Toppings = []
+              , p2Toppings = []
               , p1Cheese = False
               , p2Cheese = False}, Cmd.none)
 
@@ -1841,3 +1942,18 @@ pineappleTopping = group[pineapple
                         ,pineapple |> rotate (degrees 30) |> move(-30,-30)
                         ,pineapple |> rotate (degrees -30) |> move(43,20)
                         ] |> scale 0.4 |> move(-20,15)
+pizzaTray localModel = [[curve (-22.65,44.456) [Pull (-24.05,44.134) (-25.44,43.812),Pull (-26.41,43.275) (-27.38,42.738),Pull (-27.91,42.201) (-28.45,41.664),Pull (-28.99,40.912) (-29.53,40.161),Pull (-29.85,39.516) (-30.17,38.872),Pull (-30.28,38.228) (-30.38,37.583),Pull (-30.49,37.046) (-30.60,36.510),Pull (-30.60,35.651) (-30.60,34.791),Pull (-30.60,34.362) (-30.60,33.932),Pull (-30.49,31.248) (-30.38,28.563),Pull (-30.49,27.812) (-30.60,27.060),Pull (-30.81,26.201) (-31.03,25.342),Pull (-31.35,24.483) (-31.67,23.624),Pull (-32.21,22.550) (-32.75,21.476),Pull (-33.28,20.724) (-33.82,19.973),Pull (-34.57,19.328) (-35.32,18.684),Pull (-36.18,17.932) (-37.04,17.181),Pull (-38.22,16.536) (-39.40,15.892),Pull (-40.48,15.570) (-41.55,15.248),Pull (-42.84,14.926) (-44.13,14.604),Pull (-45.31,14.496) (-46.49,14.389),Pull (-47.46,14.174) (-48.42,13.959),Pull (-48.96,13.637) (-49.50,13.315),Pull (-50.14,12.778) (-50.79,12.241),Pull (-51.22,11.704) (-51.65,11.167),Pull (-51.86,10.630) (-52.08,10.093),Pull (-52.29,9.6644) (-51.51,9.2348),Pull (-22.01,9.3422) (8.4832,9.4496),Pull (8.3758,9.8791) (8.2684,10.308),Pull (7.9463,10.738) (7.6241,11.167),Pull (7.3020,11.704) (6.9798,12.241),Pull (6.4429,12.671) (5.9060,13.100),Pull (5.4765,13.530) (5.0469,13.959),Pull (4.1879,14.281) (3.3288,14.604),Pull (2.6845,14.711) (2.0402,14.818),Pull (0.8590,14.818) (-0.322,14.818),Pull (-1.181,14.926) (-2.040,15.033),Pull (-2.791,15.355) (-3.543,15.677),Pull (-4.832,16.214) (-6.120,16.751),Pull (-7.194,17.503) (-8.268,18.255),Pull (-9.234,19.221) (-10.20,20.187),Pull (-10.95,21.261) (-11.70,22.335),Pull (-12.24,23.516) (-12.77,24.697),Pull (-13.10,25.879) (-13.42,27.060),Pull (-13.53,27.812) (-13.63,28.563),Pull (-13.63,30.281) (-13.63,32),Pull (-13.63,33.825) (-13.63,35.651),Pull (-13.74,36.832) (-13.85,38.013),Pull (-14.17,39.087) (-14.49,40.161),Pull (-15.14,41.020) (-15.78,41.879),Pull (-16.64,42.523) (-17.50,43.167),Pull (-18.36,43.597) (-19.22,44.026),Pull (-20.08,44.241) (-20.93,44.456),Pull (-21.90,44.456) (-22.87,44.456)]
+                    |> filled (rgb 211 123 57)
+                  ,roundedRect 61.5 54 4 |> filled (rgb 211 123 57) |> move(-22,-15)] |> group |> addOutline (solid 2) black
+                  ,roundedRect 50 45 4 |> filled (rgb 185 100 45) |> move(-22,-14)
+                  ,roundedRect 45 40 4 |> filled (rgb 211 123 57) |> move(-22,-14)
+                  ,circle 4 |> filled localModel.bgColour |> move(-22,35)
+                  ,pizza1 |> scale 0.6 |> move(-22,-14) |> addOutline (solid 2.5) black
+                  ,line (0,15) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (0,-15) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (-15,0) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (15,0) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (11,11) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (-11,-11) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (11,-11) (0,0) |> outlined (solid 1) black |> move (-22,-14)
+                  ,line (-11,11) (0,0) |> outlined (solid 1) black |> move (-22,-14)] |> group |> scale 0.3 |> move (5,0)

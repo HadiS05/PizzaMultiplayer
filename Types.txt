@@ -38,6 +38,7 @@ type OverlayState = MenuScreen
                    | Settings
                    | Quit
                    | Hint
+                   | Attempts
                    | None
                   
 
@@ -55,11 +56,13 @@ type LocalState
     = AtMainMenu
     | InLobby Player
     | PlayingGame LocalGameState Player
+    | WinningScreen
+    | LosingScreen
     
 type LocalGameState = MultiPlayer
                      | SinglePlayer
 
-type Player = PlayerOne | PlayerTwo
+type Player = PlayerOne | PlayerTwo | Nobody
 
 type Target = Name | Empty
 
@@ -87,6 +90,7 @@ type LocalMsg
           | KeyBoard Target
           | Input String
           | AddCheese
+          | Bell Float
 
 
 type alias LocalModel = {time : Float
@@ -102,8 +106,11 @@ type alias LocalModel = {time : Float
                          , otime : Float
                          , toppings2 : List(TShapes)
                          , name : String
-                         ,openKeyboard : Bool
-                         ,pizza : Pizza}
+                         , openKeyboard : Bool
+                         , pizza : Pizza
+                         , timeCompleted : Float
+                         , bestTime : Float
+                         , attemptsLeft : Int}
                          
 
 type GlobalMsg
@@ -115,15 +122,17 @@ type GlobalMsg
     | PlayerJoin Player
     | PlayerLeft Player
     | StartGame LocalGameState
-    | UpdateShape PossibleToppings (Float, Float) -- Shape = topping, NOT TShape
-    | UpdateTShape TShapes (Float,Float)
+    | UpdateShape PossibleToppings (Float, Float) Player-- Shape = topping, NOT TShape
+    | UpdateTShape TShapes (Float,Float) Player
     | AddCheeseG Player
 
 type alias GlobalModel = {gameState : GameState
                          ,level : Int
                          , rando : List Int
                          , alottedTime : Float
-                         , toppings : List(TShapes)
+                         , toppings : List(TShapes) -- To display toppings
+                         , p1Toppings : List(TShapes) -- Specifically player 1 toppings
+                         , p2Toppings : List(TShapes) -- Specifically player 2 toppings
                          , p1Cheese : Bool
                          , p2Cheese : Bool
                          }
